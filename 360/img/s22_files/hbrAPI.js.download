@@ -1,0 +1,354 @@
+var hbrAPI = function(){
+    this.useDelegate = true; // used to pass to EventTarget use Delagate on this object
+    this.connector = null,
+    this.sharedConfig = null, // recive JSON config from server
+    this.sharedObject = null, // shardObject on socketIO server save per room
+    this.isExpert = false,
+    this.myUser = null;
+    this.isConnected = false;
+    this.isConnectorReady = false;
+    this.fireShredObjectOnHbrApiReady = null; // fire sharedObject when sharedConfig fired
+    this.connect = function(config){
+        this.sharedConfig = config;
+        this.isExpert = config.general.isExpert;
+        this.sharedConfig.live = new Object();
+        if(this.sharedConfig.sharedObject == undefined){
+            this.sharedConfig.sharedObject = new Object();
+        }
+        this.sharedConfig.live.isConnectorReady = false;
+        this.sharedConfig.live.isConnected = false;
+        this.sharedConfig.live.isExpert = this.isExpert;
+        Tools.config = config.session.cobrowser;
+        Tools.setUrlParams(Tools.getUrlParams());
+        ConnectorManager.connect(Tools.config.urlParams.roomID,Tools.config.urlParams.isExpert,config.general.userInfo);
+        this.initSharedConfig(this.sharedConfig)
+    },
+    this.disconnect = function(){
+        ConnectorManager.connector.sockectConnected.disconnect();
+    },
+    this.initSharedConfig = function(config){
+        this.sharedConfig = config;
+        this.isExpert = this.sharedConfig.live.isExpert;
+        // fire on hbrAPI ready
+        this.fire({ type: "onReady"});
+        if(this.sharedConfig.live.isConnectorReady){
+            this.onConnectorReady(true);
+        }else{
+            this.onConnectorReady(false);
+        }
+        if(this.sharedConfig.live.users){
+            this.usersListUpdated(JSON.parse(this.sharedConfig.live.users));
+        }
+        if(this.sharedConfig.live.isConnected){
+            this.onConnected();
+        }
+        if(this.fireShredObjectOnHbrApiReady != null){
+            this.onSharedObjectChange(this.fireShredObjectOnHbrApiReady.p,this.fireShredObjectOnHbrApiReady.nv,this.fireShredObjectOnHbrApiReady.o)
+        }
+    },
+    this.hbrAPIAskRemoteObjectPath = function(){
+        // send path to all connected object on new iFrame add or on Connected
+        if(ConnectorManager.sendDataByThis){
+            this.sendMylocation(undefined,null,this.sharedConfig);
+        }
+    },
+    this.register = function(target,name){
+        if(this.root.remoteConnectorPathBack == ""){
+            target.myPath = name;
+        }else{
+            target.myPath = this.root.remoteConnectorPathBack+"."+name;
+        }
+
+        ConnectorManager.register(target,name);
+        //listen to unload
+        document.body.onunload = this.unregister;
+    },
+    this.unregister = function(){
+        ConnectorManager.unregister();
+    },
+    this.removeFromRegisteredList =  function(name){
+        ConnectorManager.removeFromRegisteredList(name);
+    },
+    this.registerIframe = function(iframe,name){
+        ConnectorManager.registerIframe(iframe,name);
+    },
+    this.registerIframeByName = function(iframeName,name){
+        var iframe= document.getElementById(iframeName);
+        var iframewindow= iframe.contentWindow? iframe.contentWindow : iframe.contentDocument.defaultView;
+        this.registerIframe(iframewindow,name);
+    },
+    this.runEvalFunction = function(data){
+        try{
+            eval(data);
+        }catch(e){
+            console.error("runEval faild")
+        }
+    },
+    // return hbrApi src for menualy include on iframes
+    this.getHbrApiParams = function(name,obj){
+        var p = new Object();
+        if(obj != undefined){
+            p = obj;
+        }
+        try{
+            p.parentIframeConnecorName = name;
+            p.isDebug = Tools.isDebug;
+            p.hbr_path = this.sharedConfig.general.hbr_path;
+            if(p.isDebug){
+                p.applicationPath = Tools.applicationPath;
+            }else{
+                p.applicationPath = this.sharedConfig.general.applicationPath;
+            }
+            p.aac = this.sharedConfig.general.aac;
+        }catch(e){
+            p.error = e.message
+        }
+        return "p="+encodeURIComponent(JSON.stringify(p));
+    }
+    this.loadIframeSrc  = function(src,name,obj){
+        var hbrAPIpath = this.getHbrApiParams(name,obj);
+        if(src.split("?").length > 1){
+            src = src+"&"+hbrAPIpath;
+        }else{
+            src = src+"?"+hbrAPIpath;
+        }
+      return  src;
+    },
+    this.loadIframeString = function(src,name,obj,width,height){
+        // add hbrAPI path
+        src = this.loadIframeSrc(src,name,obj)
+        if(width != undefined){
+            return '<iframe id="'+name+'" src="'+src+'"     style="width:'+width+'; height: '+height+'">';
+        }else{
+            return '<iframe id="'+name+'" src="'+src+'">';
+        }
+
+    },
+    this.loadIframe= function(src,name,appendToElement,data){
+        var iframe = $(this.loadIframeString(src,name,data));
+        iframe.css({
+            "display" : "none",
+            "overflow":"hidden",
+            "margin":"0",
+            "padding":"0",
+            "border": "0px"
+        })
+        if(appendToElement != undefined){
+            iframe.appendTo($(appendToElement));
+        }else{
+            iframe.appendTo('body');
+        }
+        this.registerIframeByName(name,name);
+        iframe = $("#"+name);
+        return iframe;
+    }
+
+    this.loadDivIframe = function(src,name){
+        src = this.loadIframeSrc(src,name,{})
+        var divName = name+"_div";
+        $("body").append("<div id="+divName+"></div>");
+        var div = $("#"+divName)
+        var iframeName = name+"_iFrame";
+        var iframe = $('<iframe />', {
+            id:   iframeName,
+            src : src
+        }).appendTo(div);
+        iframe.css({
+            "border":"none"
+        })
+        div.css({
+            "-webkit-overflow-scrolling": "touch",
+            "overflow-y": "scroll",
+            "display" : "none",
+            "overflow":"hidden",
+            "position":"absolute"
+        })
+        this.registerIframeByName(iframeName,name);
+
+        return  {div:$("#"+divName),iframe:$("#"+iframeName)};
+    }
+    this.loadDiv = function(bodyUrl,name,onLoadComplete){
+        $("body").append("<div id="+name+"></div>")
+        $("#"+name).css({
+            display:"none"
+        })
+        $.ajax({url:bodyUrl,context: document.body, success: Tools.Delegate(this,function(response){
+            try {
+                var find = '%applicationPath%';
+                var re = new RegExp(find, 'g');
+                response = response.replace(re, this.sharedConfig.general.applicationPath);
+                $("#" + name).html(response)
+            }catch(e){
+            debugger;
+            console.log(name+" loadDiv faild");
+              //  alert(name+" loadDiv faild");
+            }
+            onLoadComplete();
+        })});
+        return $("#"+name);
+    }
+
+    ConnectorManager.register(this,"hbrAPI");
+
+    // user list
+    this.updateMyUser = function(user){
+        this.menualyUpdateMyUser(user);
+        this.runFunctionAllObject("hbrAPI.menualyUpdateMyUser",user);
+        if(this.root.remoteConnectorPath == ""){
+            ConnectorManager.connector.sockectConnected.updateMyUser(user);
+        }else{
+            this.runFunctionObject(this.root.remoteConnectorPath+".hbrAPI","updateMyUser",user)
+        }
+    }
+    this.menualyUpdateMyUser = function(user){
+        this.myUser = user;
+    }
+    // connection events
+    this.onConnectorReady = function(status){
+        ConnectorManager.isConnectorReady = status;
+        if(this.sharedConfig == undefined){
+            this.sharedConfig = new Object()
+            this.sharedConfig.live = new Object();
+            // TODO : how it work ?????
+            debugger;
+        }
+        this.sharedConfig.live.isConnectorReady = status;
+        this.isConnectorReady = status;
+        this.fire({ type: "onConnectorReady",status:status});
+    }
+    this.onConnected = function(){
+        ConnectorManager.isConnected = true;
+        this.sharedConfig.live.isConnected = true;
+        this.hbrAPIAskRemoteObjectPath();
+        this.isConnected = true;
+        this.fire({ type: "onConnected"});
+    }
+    this.onReconnected = function(data){
+        this.isConnected = true;
+        this.hbrAPIAskRemoteObjectPath();
+        this.fire(data);
+        delete data.target;
+    }
+    this.onDisconnected = function(){
+        this.sharedConfig.live.isConnected = false;
+        ConnectorManager.isConnectorReady = false;
+        this.isConnected = false;
+        this.isConnectorReady = false;
+        this.fire({ type: "onDisconnected"});
+    }
+    // sharedObject
+    this.getGlobalSharedObject = function(){
+        if(this.root.remoteConnectorPath == ""){
+            ConnectorManager.connector.sockectConnected.getGlobalSharedObject();
+        }else{
+            this.runFunctionObject(this.root.remoteConnectorPath+".hbrAPI","getGlobalSharedObject")
+        }
+    }
+    this.addSharedObjectElement = function(path,value){
+        if(this.root.remoteConnectorPath == ""){
+            ConnectorManager.connector.sockectConnected.addSharedObjectElement(path,value);
+        }else{
+            this.runFunctionObject(this.root.remoteConnectorPath+".hbrAPI","addSharedObjectElement",path,value)
+        }
+    }
+    this.applySharedObjectActions = function(path,action,params,type){
+        if(this.root.remoteConnectorPath == ""){
+            ConnectorManager.connector.sockectConnected.applySharedObjectActions(path,action,params,type);
+        }else{
+            this.runFunctionObject(this.root.remoteConnectorPath+".hbrAPI","applySharedObjectActions",path,action,params,type)
+        }
+    }
+    this.delSharedObjectElement = function(path){
+        if(this.root.remoteConnectorPath == ""){
+            ConnectorManager.connector.sockectConnected.delSharedObjectElement(path);
+        }else{
+            this.runFunctionObject(this.root.remoteConnectorPath+".hbrAPI","delSharedObjectElement",path)
+        }
+    }
+    this.usersListUpdated = function(users){
+        this.myUser = users[0];
+        for(var i = 0 ; i < users.length ; i++){
+            if(users[i] && users[i].expertMode)
+             this.expertUser = users[i];
+        }
+        this.fire({ type: "usersListUpdated" , users : users});
+        //save current userslist to pass to new registered iframes
+        try{
+            this.sharedConfig.live.users = JSON.stringify(users);
+        }catch (e){
+           // TODO : fix bug
+        }
+    }
+    this.onSharedObjectChange = function(path,newValue,obj){
+        this.sharedObject = obj;
+        if(this.sharedConfig == null){
+            this.fireShredObjectOnHbrApiReady = {p:path,nv:newValue,o:obj};
+        }else{
+            this.fire({ type: "onSharedObjectChange" , path:path , newValue : newValue , obj:this.sharedObject});
+        }
+    }
+    // config live update
+    this.updateLiveObject = function(paramName,data){
+
+    },
+    this.onLiveObjectUpdated =  function(paramName,data){
+
+    },
+    this.initMouses = function(){
+        Mouses.init(this);
+    },
+    // remote fire evenets example  connector.js  userJoined , userRemoved , onUserChanged , onConnected ,  onDisconnected
+    this.fireEvent = function(eventName,objetName,data){
+        var obj = new Object();
+        obj.type = eventName;
+        obj[objetName] = data;
+        this.fire(obj);
+    }
+    ConnectorManager.hbrAPIEvents = true;
+}
+hbrAPI.prototype = new EventTarget();
+hbrAPI.prototype.constructor = hbrAPI;
+// events to listen
+hbrAPI.ON_READY = "onReady"
+hbrAPI.ON_USERS_LIST_UPDATED = "usersListUpdated"
+hbrAPI.ON_USER_JOINED = "userJoined"
+hbrAPI.ON_USER_REJOINED = "userRejoined"
+hbrAPI.ON_USER_REMOVED = "userRemoved";
+hbrAPI.ON_USER_CHANGE = "onUserChanged";
+hbrAPI.ON_SHARED_OBJECT_CHANGE = "onSharedObjectChange"
+
+
+
+hbrAPI.ON_CONNECTOR_READY = "onConnectorReady";
+hbrAPI.ON_CONNECTED  = "onConnected";
+hbrAPI.ON_DISCONNECTED  = "onDisconnected"
+hbrAPI.ON_RECONNECED = "onReconnected"
+
+
+
+//TODO : move to Constants.js
+var WrapperStages = function(){
+
+}
+WrapperStages.CustomerSmall = 10;
+WrapperStages.CustomerSmallDetails = 11;
+WrapperStages.CustomerSideBySideDetails = 12;
+WrapperStages.CustomerSideBySide = 13;
+WrapperStages.CustomerFullContent = 14;
+
+WrapperStages.ExpertFullInitial = 20;
+WrapperStages.ExpertFullAV = 21;
+
+
+
+// init onHbrApiReady
+try{
+    $(function() {
+        if (typeof onHbrApiReady == 'function') {
+            onHbrApiReady();
+        }
+    });
+}catch(e){
+    console.error(e);
+}
+

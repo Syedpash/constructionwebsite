@@ -1,0 +1,10 @@
+<div class="marque">
+<font face="Monotype Corsiva" size="5" color="red"><marquee direction="left">Welcome to Our website!!!All your needs done here.</marquee></font>
+</div>
+
+<div class="search-container">
+  <form>
+    <input type="text" placeholder="Search.." name="search">
+    <button type="submit">search</button>
+  </form>
+</div>

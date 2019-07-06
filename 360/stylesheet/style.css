@@ -1,0 +1,411 @@
+ #navigation img{
+  width:20%;
+   height:17%;
+
+}
+
+*{
+  margin: 0;
+  padding: 0;
+}
+.marque{.
+
+
+  margin-top:-1%;
+
+}
+#body{
+  background-image: url('../images/*.jpg');
+  background-size:100%;
+  background-repeat: no-repeat;
+}
+
+
+ul {
+    list-style-type: none;
+
+    overflow: hidden;
+   background-color: grey;
+}
+
+ul li {
+    float: left;
+  width: 120px;
+  height: 93px;
+  line-height: 35px;
+  text-align: center;
+  margin-left: 0px;
+  margin-right: -1px;
+
+}
+
+ul li a {
+    display: block;
+    color:white;
+   font-family: "Times New Roman";
+   font-size: 14px;
+   margin-top: 18px;
+    padding: 8px;
+}
+
+ul li a:hover {
+    background-color:whitesmoke;
+}
+
+
+
+.search-container {
+  float: right;
+}
+ input[type=text] {
+  padding: 3px;
+  margin-top: 8px;
+  font-size: 17px;
+  border: none;
+}
+
+.search-container button:hover {
+  background: #ccc;
+}
+.search-container button {
+  float: right;
+  padding: 5px 3px;
+  margin-top: 8px;
+  margin-right: 16px;
+  background: #ddd;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+}
+input[type=text] {
+    border: 1px solid #ccc;
+  }
+  @keyframes slider {
+
+  0% {
+  	left: 0;
+  }
+
+  20% {
+  	left: 0;
+  }
+
+  25% {
+  	left: -100%;
+  }
+
+  45% {
+      left: -100%;
+
+  }
+
+  50% {
+  		left: -200%;
+
+  }
+
+  70% {
+  	left: -200%;
+  }
+
+  75% {
+  	left: -300%;
+  }
+
+  95% {
+  	left: -300%;
+  }
+
+  100% {
+  	left: -400%;
+
+  }
+
+  }
+
+  #slider {
+  	overflow: hidden;
+  }
+
+  #slider figure img {
+  	width: 20%;
+  	float: left;
+  }
+
+  #slider figure {
+  	position: relative;
+  	width: 500%;
+  	margin: 0;
+  	left: 0;
+  	text-align: left;
+  	font-size: 0;
+  	animation: 20s slider infinite;
+
+  }
+  .container1{
+    margin:0;
+
+  padding: 0;
+
+  width:100%;
+
+  height:200px;
+
+   background:whitesmoke ;
+    margin-top:0rem;
+    border: 8px;
+    border-block-end-color:white;
+  }
+
+  .title1{
+    text-align: center;
+  }
+  .circle{
+    margin-left: 4%;
+    margin-top: 1%;
+
+  }
+
+  .circle1{
+    margin-left: 40%;
+    margin-top: -17%;
+  }
+  .circle2{
+     margin-left: 73%;
+    margin-top:-6%;
+
+  }
+  .circle img
+  {
+    width:7%;
+
+
+  }
+
+  .circle1 img{
+    width: 10%;
+  }
+  .circle2 img
+  {
+    width:25%;
+      margin-top: -9rem;
+
+  }
+
+  .container1{
+
+    font-family: "Comic Sans MS", cursive, sans-serif;;
+  }
+
+  .circle p{
+    font-size: 15px;
+    font-family:'Tangerine';
+
+    text-shadow:1px 1px 1px;
+
+  }
+
+  .circle1 p{
+    font-size: 15px;
+    font-family:'Tangerine';
+
+    text-shadow:1px 1px 1px;
+  }
+
+  .circle2 p{
+    font-size: 15px;
+    font-family:'Tangerine';
+
+    text-shadow:1px 1px 1px;
+    margin-top: -3rem;
+  }
+  .loginBox
+{
+	position:absolute;
+	top:62%;
+	left:90%;
+	transform: translate(-50%, -50%);
+	width:350px;
+	height:400px;
+	padding:10px 30px;
+	box-sizing: border-box;
+	background:rgba(0,0,0,0.5) ;
+
+}
+
+
+
+.loginBox h2
+{
+	margin:0;
+	padding:0 0 10px;
+	color:cadetblue;
+	text-align:left;
+}
+
+
+
+
+
+.loginBox input
+{
+	width:100%;
+	margin-bottom: 10px;
+}
+
+.loginBox input[type="text"], .loginBox input[type="password"]
+{
+	border: none;
+	border-bottom: 2px solid #fff;
+	background: transparent;
+	outline:none;
+	height:47px;
+	color:#fff;
+	font-size: 16px;
+
+
+}
+
+
+.loginBox input[type="submit"]
+{
+	border:none;
+	outline:none;
+	height: 40px;
+	color:#fff;
+	font-size:16px;
+	background: rgb(255,38,126);
+	cursor:pointer;
+	border-radius:20px;
+}
+
+
+.loginBox input[type="submit"]:hover
+{
+	background: #efed40;
+	color: #262626;
+}
+
+
+
+
+.loginBox a
+{
+	color: #fff;
+	font-size:14px;
+	font-weight:bold;
+}
+
+
+::placeholder
+{
+	color:rgba(255,255,255,0.5);
+}
+
+
+.user
+{
+	width:100px;
+	height:100px;
+	overflow:hidden;
+	position:absolute;
+	top:calc(-100px/2);
+	left:calc(50% - 50px);
+	border-radius:50%;
+}
+
+
+
+  /* Center website */
+  .main {
+      max-width: 1340px;
+      margin: 0;
+  }
+  .w3-button {width:150px;height:40px}
+
+
+  h1 {
+      font-size: 50px;
+      text-align: center;
+      color: #4CAF50;
+      word-break: break-all;
+  }
+
+  .row {
+      margin: 8px -16px;
+  }
+
+  /* Add padding BETWEEN each column */
+  .row,
+  .row > .column {
+      padding: 5px;
+  }
+
+  /* Create four equal columns that floats next to each other */
+  .column {
+      float: left;
+      width: 25%;
+  }
+  hr {
+    border-width: 5px;
+    color:blue;
+}
+
+  /* Clear floats after rows */
+  .row:after {
+      content: "";
+      display: table;
+      clear: both;
+
+  }
+
+  /* Content */
+  .content {
+      background-color: aliceblue;
+      padding: 10px;
+  }
+.content img{
+  width:120px;
+  height:240px;
+}
+
+  /* Responsive layout - makes a two column-layout instead of four columns */
+  @media screen and (max-width: 900px) {
+      .column {
+          width: 50%;
+      }
+  }
+
+  /* Responsive layout - makes the two columns stack on top of each other instead of next to each other */
+  @media screen and (max-width: 600px) {
+      .column {
+          width: 100%;
+      }
+  }
+  .footer {
+
+
+     width: 100%;
+     height: 150px;
+
+     background-color: gray;
+     color: white;
+     text-align: center;
+  }
+
+
+.footer i{
+  font-size: 30px;
+  color:black;
+  text-align: right;
+
+}
+
+.responsive {
+
+    height: auto;
+    display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 30%;
+  }

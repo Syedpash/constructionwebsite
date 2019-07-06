@@ -1,0 +1,233 @@
+remoteControlTools = {
+    Delegate: function (o, f) {
+        //        if(f.bind != null){
+        //            f.bind(o);
+        //            return;
+        //        }
+        var a = new Array();
+        var l = arguments.length;
+        for (var i = 2; i < l; i++) a[i - 2] = arguments[i];
+        return function () {
+            var aP = [].concat(arguments, a);
+            if (f == undefined) {
+                // TODO : fix undefined problem
+                //  this.socket.on('connect',Tools.Delegate(this,this.onConnected)); replace to .bind(this);
+                return;
+            }
+            try {
+                f.apply(o, aP[0]);
+            } catch (e) {
+                // faild run function
+                console.error("Delegate faild " + e);
+                try {
+                    console.debug(o);
+                    console.debug(arguments[0]);
+                } catch (e) {
+                    // ignor trace erro data
+                }
+                if (!Device.isPC) {
+                    return;
+                }
+                // for debug
+                //debugger;
+                //try{
+                //    f.apply(o, aP[0]);
+                //}catch(e){
+                //
+                //}
+
+            }
+
+        }
+    }
+}
+
+
+// ----- PostMassage manager
+if (!window.postMessage  && !parent.postMessage) {
+    console.error("coBrowser not supported in this browser");
+}
+// iframe.contentWindow
+// window
+// if(this.isMSI)
+//                this.setTargetWindow(parent);
+//            else
+//                this.setTargetWindow(parent.parent.window);
+// var targe = this.ihIframe.contentWindow;
+// this.connector = new PostMessageManager(this,targe,window,"chatIframe");
+PostMessageManager = function(obj,outTarget,inTarget,name){
+    this.obj = obj;
+    this.connectionName = name;
+    this.outTarget = outTarget;
+    this.inTarget = inTarget;
+    this.enabled = true;
+    if(parent == outTarget && window == window.top){
+        console.debug("PostMessage "+name+" Warning register to prente on root");
+        this.enabled = false;
+    }
+    this.remove = function(){
+        this.outTarget = null;
+        this.inTarget = null;
+        this.obj = null;
+        this.enabled = false;
+        //debugger;
+    }
+    this.callFunction = function(name) {
+        if(!this.enabled){
+            return;
+        }
+        var args = Array.prototype.slice.call(arguments);
+        args.unshift(this.connectionName);
+        args = JSON.stringify(args);
+        this.outTarget.postMessage(args, "*");
+    }
+    // Recive
+    // expert or Session run function on this HTML
+    this.runFunction = remoteControlTools.Delegate(this,function(e) {
+        if(!this.enabled){
+            return;
+        }
+        // Do we trust the sender of this message?  (might be
+        // different from what we originally opened, for example).
+        //if (e.origin !== "http://example.org")
+        //     return;
+        var params = e.data;
+        if(params.charAt(0) != "["){
+            // ignor other post messages
+            return;
+        }
+        try {
+            params = eval(params);
+        } catch (e) {
+            params = JSON.parse(params);
+        }
+        try {
+            if(params[0] == this.connectionName){
+                //this.obj[params[1]].apply(this, parremoteControlClientams[2]);
+                params.shift();
+                this.startFunction(params);
+            }else{
+                // no same connection
+            }
+        } catch (e) {
+            // console.log("apply function error "+params[0]+" , "+params[1]);
+        }
+    })
+    this.startFunction = remoteControlTools.Delegate(this.obj,function(params){
+        var fName = params.shift();
+        this[fName].apply(this, params);
+    })
+    if (typeof this.inTarget.addEventListener != 'undefined') {
+        this.inTarget.addEventListener('message', this.runFunction, false);
+    }else if (typeof this.inTarget.attachEvent != 'undefined') {
+        this.inTarget.attachEvent('onmessage', this.runFunction);
+    }else{
+        console.error("Post messag faild")
+    }
+}
+
+
+var remoteControlServer = {
+    init:function(){
+        this.connector = new PostMessageManager(this,parent,window,"remoteControlManager");
+        this.connector.callFunction("_hbrpi_remoteControlClientReady");
+    },
+    onSuccess:function(callBackFunction,callBackData, data, status,jqXHR){
+        this.connector.callFunction(callBackFunction,data,callBackData,status)
+    },
+    onFaild:function(callBackFunction,callBackData,jqXHR,statusText,errorThrown){
+        this.connector.callFunction(callBackFunction,callBackData,statusText,errorThrown)
+    },
+    callRemoteServer:function(url,responsFunctionName,postData,errorFunctionName,callBackData,timeout,contentType){
+        if(contentType == undefined){
+            contentType = "text/html; charset=UTF-8"
+        }
+        if(callBackData == undefined) {
+            callBackData = {};
+        }
+        if(timeout == undefined){
+            timeout = 0;
+        }
+        $.ajax({
+            url: url,
+            type: "POST",
+            data: postData,
+            contentType:contentType,
+            timeout: timeout,
+            success: this.onSuccess.bind(this,responsFunctionName,callBackData),
+            error: this.onFaild.bind(this,errorFunctionName,callBackData)
+        });
+    }
+}
+
+
+
+var remoteControlClient = {
+    initilized: false,
+    arr : [],
+    callRemoteFunction:function(url,responsFunctionName,postData,errorFunctionName,callBackData,timeout,contentType){
+        if(this.initilized) {
+            this.jsonSaveManager.callFunction("callRemoteServer", url, responsFunctionName, postData, errorFunctionName, callBackData, timeout, contentType);
+        }else{
+            this.arr.push({
+                url : url,
+                responsFunctionName : responsFunctionName,
+                postData: postData,
+                errorFunctionName : errorFunctionName,
+                callBackData: callBackData,
+                timeout: timeout,
+                contentType : contentType
+
+            })
+        }
+    },
+    callRemoteFunctionDelay:function(obj){
+        this.callRemoteFunction(obj.url,obj.responsFunctionName,obj.postData,obj.errorFunctionName,obj.callBackData,obj.timeout,obj.contentType)
+    },
+    _hbrpi_remoteControlClientReady:function(){
+      if(this.initilized){
+          return;
+      }
+      this.initilized = true;
+        // send all requests
+        this.arr.map(function(obj){
+            this.callRemoteFunctionDelay(obj)
+        }.bind(this))
+        this.clientObj.remoteControlReady();
+    },
+    ready : function ( fn ) {
+        if(document.body){
+            fn();
+        } else{
+            setTimeout(this.ready.bind(this),10,fn);
+        }
+    },
+    _init:function(){
+        var iframe = document.createElement('iframe');
+        iframe.src = this.src;
+        iframe.id = this.iframeID;
+        iframe.setAttribute("style","visibility : hidden ; height : 0px ; position :absolute ; display : none");
+        document.body.appendChild(iframe);
+
+        var iframewindow = iframe.contentWindow ? iframe.contentWindow : iframe.contentDocument.defaultView;
+        this.jsonSaveManager = new PostMessageManager(this.obj, iframewindow, window, "remoteControlManager");
+    },
+    init:function(obj,src,iframeID){
+        if(iframeID == undefined){
+            iframeID = "iframeRemotServer"
+        }
+        this.src = src ;
+        this.iframeID = iframeID;
+        this.obj = obj;
+
+        obj.callRemoteFunction = this.callRemoteFunction.bind(this);
+        obj._hbrpi_remoteControlClientReady = this._hbrpi_remoteControlClientReady.bind(this);
+        this.clientObj = obj;
+
+        this.ready(this._init.bind(this));
+    }
+}
+
+
+
+

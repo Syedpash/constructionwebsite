@@ -1,0 +1,46 @@
+<html>
+<head>
+<title>project status</title>
+</head>
+<body bgcolor='crimson'>
+<?php
+
+	$dbh=mysql_connect('localhost','root','') or
+	die(mysql_error());
+	mysql_select_db('construction') or die(mqsql_error());
+
+	$user_id=$_REQUEST['user_id'];
+
+
+	$query="INSERT INTO status VALUES ('$user_id')";
+	$result=mysql_query($query) or die(mysql_error());
+
+	echo "Data Inserted Successfully!!!!";
+
+	$var=mysql_query("select * from status");
+	
+	echo"<table border size=5>";
+	echo"<tr><th>status user_id</th> </tr>";
+
+
+	while ($arr=mysql_fetch_row($var))
+	{
+	    echo"<tr> <td>$arr[0]</td> </tr>";
+	}
+
+	echo"</table>";
+        ?>
+	<?php
+       
+        $db_host="localhost";
+	$db_name="rto";
+        $db_user="root";
+         $db_pass="";
+        $con=mysql_connect("$db_host","$db_user","$db_pass") or die("could not connect");
+	mysql_select_db ('construction') or die(mysql_error());
+
+ 	mysql_close($dbh);
+	
+?>
+</body>
+</html>

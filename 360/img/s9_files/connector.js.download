@@ -1,0 +1,524 @@
+Connector = function(){
+    EventTarget.call(this);
+    this.isSockectConnected = false;
+    this.isP2PConncted = false;
+    this.p2pSwf = null;
+    this.sockectConnected = null;
+    this.roomID = null;
+    this.isExpert = false;
+    this.isReady = false;
+    this.userObject = null;
+    this.connect = function(roomID,isExpert,userObject){
+        this.roomID = roomID;
+        this.userObject = userObject;
+        this.isExpert = isExpert;
+        if(this.isSockectConnected == true){
+            this.onIOConectedHandler();
+            return;
+        }
+        this.initSocketIO();
+        //this.initP2P();
+    }
+    this.disconnect = function(){
+        console.log("IO disconnected "+this.roomID)
+        this.sockectConnected.disconnect();
+        this.isSockectConnected = false;
+    }
+    this.sendMessage = function(data){
+        if(this.isP2PConncted){
+            this.p2pSwf.callFunction(data);
+        }else if(this.isSockectConnected){
+            this.sockectConnected.sendMessage(data);
+        }else{
+           console.error("Socket IO connection faild")
+        }
+
+    }
+    //---------- initSocketIO ---------
+    this.initSocketIO = function(){
+        console.log("init SocketIO "+this.roomID)
+        this.isSockectConnected = false;
+        this.sockectConnected = new SocketIO();
+        this.sockectConnected.addListener("onMessage", Tools.Delegate(this,this.onIOMessage));
+        this.sockectConnected.addListener("onConnected",Tools.Delegate(this,this.onConnected));
+        this.sockectConnected.addListener("onDisconnected",Tools.Delegate(this,this.onIODisconnected))
+        this.sockectConnected.addListener("onReconnected",Tools.Delegate(this,this.onReconnected));
+
+        this.sockectConnected.addListener("usersListUpdated", Tools.Delegate(this,this.usersListUpdated));
+        // sharedObject
+        this.sockectConnected.addListener("sharedObjectChange",Tools.Delegate(this,this.sharedObjectChange))
+        // create user
+        if(this.userObject == undefined){
+            var userObject = new Object();
+            userObject.name = "userName_"+Math.round(Math.random()*100);
+            this.userObject = userObject;
+        }
+        var user = this.userObject;
+        user.expertMode = this.isExpert;
+        user.isP2P = false;
+        // set
+        user.userAgent = navigator.userAgent;
+        this.sockectConnected.connect(this.roomID,Tools.config.urlParams.IOServer,user);
+    }
+    this.onConnected = function(data){
+        this.fire(data);
+    }
+    this.onReconnected = function(data){
+        this.fire(data);
+    }
+    this.usersListUpdated = function(event){
+        var users = event.users;
+        var expert = false;
+        var customer = false;
+        var isP2PConnctedStatus = true;
+        for(var i = 0 ; i < users.length ; i++){
+            if(users[i].expertMode){
+                expert = true;
+            }else{
+                customer = true;
+            }
+            if(users[i].isP2P == false){
+                isP2PConnctedStatus = false;
+            }
+        }
+        this.isP2PConncted = isP2PConnctedStatus;
+        if(expert && customer){
+            this.onReady(true);
+        }else{
+            this.onReady(false);
+        }
+        this.isSockectConnected = true;
+    }
+    this.onIOMessage = function(event){
+        //event.data
+        this.fire({ type: "onMessage" , data : event.data});
+    }
+    this.onIODisconnected = function(event){
+        this.isSockectConnected = false;
+        this.fire({ type: "onDisconnected"});
+        this.onReady(false);
+    }
+    //----- init P2P -------------
+    this.initP2P = function(){
+        var swfSize = 1;
+        var div = $("<div>", {id: "p2pConnectorDiv"});
+        var div2 = $("<div>", {id: "flashConteiner"});
+        div.css("position", "absolute");
+        div2.prepend(div)
+        div2.css("position", "absolute");
+        if(!Device.isMSIE){
+            // if not show swf on IE p2p will note work
+            // if show on chrome scrollers is defected!!!!!
+            div.css("visibility", "hidden");
+            div2.css("visibility", "hidden");
+        }
+        $("body").prepend(div2);
+        window.initP2P = Tools.Delegate(this,this.swfReady);
+        window.runFunction = Tools.Delegate(this,this.p2pRunFunction);
+        window.p2pConnected = Tools.Delegate(this,this.p2pConnected);
+        window.p2pDisconnected = Tools.Delegate(this,this.p2pDisconnected);
+
+        var flashvars = {};
+        var params = {};
+        var attributes = { id: "p2pConnector", name: "p2pConnector" };
+        var swfPath = Tools.applicationPath+"coBrowser3/framworks/connector/p2pConnector.swf";
+        swfobject.embedSWF(swfPath, "p2pConnectorDiv", swfSize, swfSize, "9.0.0","",flashvars, params, attributes);
+
+    }
+    this.swfReady = function(){
+        console.log("p2p swf loaded")
+        this.p2pSwf = document.getElementById("p2pConnector");
+        this.p2pSwf.iniP2P(this.isExpert,this.roomID)
+    }
+    this.p2pRunFunction = function(data){
+        this.fire({ type: "onMessage" , data : data});
+    }
+    this.p2pConnected = function(){
+        console.log("P2P connected "+this.roomID)
+        this.sockectConnected.myHbrUser.isP2P = true;
+        this.sockectConnected.updateMyUser(this.sockectConnected.myHbrUser)
+    }
+    this.p2pDisconnected = function(){
+        console.log("P2P disconnected "+this.roomID)
+        this.sockectConnected.myHbrUser.isP2P = false;
+        this.sockectConnected.updateMyUser(this.sockectConnected.myHbrUser)
+    },
+    this.onReady = function(status){
+        console.log("onReady status "+status)
+        if(this.isReady != status){
+            setTimeout(Tools.Delegate(this,this.fire),100,{ type: "onReady" , status : status});
+        }
+        this.isReady = status;
+    }
+}
+
+Connector.prototype = new EventTarget();
+Connector.prototype.constructor = Connector;
+
+
+
+
+var ConnectorManager = {
+    connector:null,
+    isConnected:false,
+    isConnectorReady:false,
+    sendDataByThis:false,
+    connectionName:"ConnectorManager",
+    remoteConnectorPathBack:"",
+    hbrAPIEvents:false, // TODO : revrite CB to use hbrapi and delete these function (onConnectorReady , onConnected , onDisconnected);
+    connect:function(id,isExpert,userObject){
+        this.sendDataByThis = true;
+        this.connector = new Connector();
+        this.connector.addListener("onMessage", Tools.Delegate(this,this.onConnectorMessage));
+        // connection events
+        this.connector.addListener("onConnected", Tools.Delegate(this,this.onConnectorConnected));
+        this.connector.addListener("onDisconnected", Tools.Delegate(this,this.onConnectorDisconnected));
+        this.connector.addListener("onReconnected", Tools.Delegate(this,this.onConnectorReconnected));
+        // onReady fire on expert and customer connected and pass true/false
+        this.connector.addListener("onReady",Tools.Delegate(this,this.onConnectorReady));
+        this.connector.connect(id,isExpert,userObject);
+        // users events
+        this.connector.sockectConnected.addListener("userJoined",Tools.Delegate(this,function(data){
+            this.runFunctionAllObject(this,["hbrAPI.fireEvent","userJoined","user",data.info]);
+        }))
+        this.connector.sockectConnected.addListener("userRejoined",Tools.Delegate(this,function(data){
+            this.runFunctionAllObject(this,["hbrAPI.fireEvent","userRejoined","user",data.info]);
+        }))
+        this.connector.sockectConnected.addListener("userRemoved",Tools.Delegate(this,function(data){
+            this.runFunctionAllObject(this,["hbrAPI.fireEvent","userRemoved","user",data.info]);
+        }))
+        this.connector.sockectConnected.addListener("onUserChanged",Tools.Delegate(this,function(data){
+            this.runFunctionAllObject(this,["hbrAPI.fireEvent","onUserChanged","user",data.info]);
+        }))
+        this.connector.sockectConnected.addListener("usersListUpdated",Tools.Delegate(this,function(data){
+            this.runFunctionAllObject(this,["hbrAPI.usersListUpdated",data.users]);
+        }))
+        // sahredObject evenbts
+        this.connector.sockectConnected.addListener("sharedObjectChange",Tools.Delegate(this,function(data){
+            this.runFunctionAllObject(this,["hbrAPI.onSharedObjectChange",data.path,data.newValue,data.obj]);
+        }))
+    },
+    onConnectorMessage:function(event){
+        if(event.data[0] == "*"){
+            // call function on all registered objects
+            this.runFunctionAllObject(this,event.data[1]);
+        }else{
+            // call function on specific object
+            var params = event.data[1];
+            params.unshift(event.data[0]);
+            this.runFunctionObject.apply(this,params);
+        }
+    },
+    // TODO : replace by events from hbrAPI
+    onConnectorReady:function(data){
+        // fire on connected to server
+        this.isConnectorReady = data.status;
+        if(this.hbrAPIEvents){
+            // fire on expert and customer on session
+            this.runFunctionAllObject(this,["hbrAPI.onConnectorReady",data.status]);
+        }else{
+            this.runFunctionAllObject(this,["onConnected"]);
+
+        }
+    },
+    onConnectorConnected:function(){
+        // TODO: old not relevant event useed by CB need to rewrite logic not used by hbrAPI
+       this.isConnected = true;
+       if(this.hbrAPIEvents){
+           // fire on connected to socketIO
+           this.runFunctionAllObject(this,["hbrAPI.onConnected"]);
+       }else{
+           this.runFunctionAllObject(this,["onConnectorReady"]);
+       }
+    },
+    onConnectorDisconnected:function(){
+        this.isConnected = false;
+        if(this.hbrAPIEvents){
+            // fire on connection lost
+            this.runFunctionAllObject(this,["hbrAPI.onDisconnected"]);
+        }else{
+            this.runFunctionAllObject(this,["onDisconnected"]);
+        }
+    },
+    onConnectorReconnected:function(data){
+        delete data.target;
+        this.runFunctionAllObject(this,["hbrAPI.onReconnected",data]);
+    },
+    // register manager
+    runFunctionObject:function(){
+        try{
+            // [objectName,functions,params....]
+            var params = Array.prototype.slice.call(arguments);
+            var objNameAll = params[0].split(".");
+            var objName = objNameAll[0];
+            var functionName = params[1];
+            params.shift();
+            params.shift();
+            try{
+                if(this.registerList[objName].type == "remoteIframe"){
+                    throw "remoteIframe";
+                }
+                this.registerList[objName][functionName].apply(this.registerList[objName], params)
+            }catch(e){
+                if(this.registerList[objName] != undefined && this.registerList[objName]["runRemoteFunction"] != undefined){
+                    var paramsDublicate = JSON.parse(JSON.stringify(params));
+                    paramsDublicate.unshift(functionName);
+                    if(this.registerList[objName].type == "remoteIframe"){
+                        objNameAll.shift();
+                        paramsDublicate.unshift(objNameAll.join("."));
+                        paramsDublicate.unshift("runFunctionObject");
+                    }
+                    this.registerList[objName]["runRemoteFunction"].apply(this.registerList[objName], paramsDublicate)
+                }else{
+                    if(objName == "undefined"){
+                        debugger;
+                    }
+                    if(this.connector == null && this.registerList[objName] == undefined && objName != "undefined"){
+                        // go to root and run function from there
+                        var newTryPath = this.remoteConnectorPath+"."+objNameAll.join(".");
+                        if(newTryPath == undefined || newTryPath == 'undefined'){
+                            debugger;
+                        }
+                        var paramsDublicate = JSON.parse(JSON.stringify(params));
+                        paramsDublicate.unshift(functionName);
+                        paramsDublicate.unshift(newTryPath);
+                        console.debug("runFunctionObject is in loop???");
+                        this.runFunctionObject.apply(this,paramsDublicate);
+                    }else{
+                        console.error("faild run "+functionName+" on "+objName+" : "+"  "+e);
+                    }
+                }
+            }
+        }catch(e){
+            console.error("runFunctionObject "+e);
+        }
+    },
+    runFunctionAllObject:function(myObj,params,onlyLocal){
+        try{
+            var functionName = params[0].split(".");
+            var checkObject = "";
+            if(functionName.length > 1){
+                checkObject = functionName[0]
+                functionName[0] = functionName[1];
+            }
+            functionName = functionName[0]
+            params.shift();
+            for (var name in this.registerList) {
+                try{
+                    if(this.registerList[name].connectionName != myObj.connectionName){
+                        if((checkObject == "" || checkObject == name) && this.registerList[name][functionName] != undefined){
+                            try{
+                                this.registerList[name][functionName].apply(this.registerList[name], params)
+                            }catch(e){
+                                console.error("runFunctionAllObject "+e);
+                                debugger;
+                                this.registerList[name][functionName].apply(this.registerList[name], params)
+                            }
+                        }else{
+                            throw "noFunction";
+                        }
+                    }else{
+                        //console.log("ignor run on "+name+"  "+functionName)
+                    }
+                }catch(e){
+                    // check if there function "runRemoteFunction" and run it
+                    if(this.registerList[name]["runRemoteFunction"] != undefined && onlyLocal == undefined){
+                        var paramsDublicate = JSON.parse(JSON.stringify(params));
+                        paramsDublicate.unshift(functionName);
+                        if(this.registerList[name].type == "remoteIframe"){
+                            if(checkObject != ""){
+                                paramsDublicate[0] = checkObject+"."+paramsDublicate[0];
+                            }
+                            paramsDublicate.unshift("runFunctionAllObject");
+                        }
+                        try{
+                            if(this.registerList[name]["runRemoteFunction"] != undefined){
+                                this.registerList[name]["runRemoteFunction"].apply(this.registerList[name], paramsDublicate);
+                            }
+                        }catch(e){
+                            console.error("runFunctionAllObject 2 "+e);
+                        }
+                    }else{
+                        //console.debug("function not implemented in  "+name+"  "+functionName+"  "+e);
+                    }
+
+                }
+
+            }
+        }catch(e){
+            console.error("runFunctionAllObject "+e)
+        }
+    },
+    registerList:null,
+    unregister:function(){
+        for(var key in this.registerList){
+            var item = this.registerList[key];
+            if(item.type == "remoteIframe"){
+                this.runFunctionObject(item.connectionName+".hbrAPI","removeFromRegisteredList",item.connectionName)
+                this.removeFromRegisteredList(item.connectionName);
+            }
+        }
+    },
+    removeFromRegisteredList:function(name){
+        this.registerList[name].iframeConnector.remove()
+        delete this.registerList[name].iframeConnector
+        delete this.registerList[name];
+    },
+    register:function(target,name){
+        // register runFunction to target by name
+        // register target to events
+        if(this.registerList == null){
+            this.registerList = new Object()
+        }
+        this.registerList[name] = (target);
+        target.connectionName = name;
+        target.root = this;
+        // alert manager function
+        target.runDynamicFunction = Tools.Delegate(target,function(){
+            var args = Array.prototype.slice.call(arguments);
+            var fn = args[0];
+            args.shift();
+            try {
+                eval('(' + fn + ')').apply(this, args);
+            }catch(e){
+                console.error("faild run function "+e)
+            }
+        });
+
+
+        // send data by connector
+        target.callFunction = Tools.Delegate(target,function(){
+            var params = Array.prototype.slice.call(arguments);
+            if(this.root.sendDataByThis){
+                this.root.connector.sendMessage([this.connectionName,params]);
+            }else{
+                if(this.connectionName == undefined || this.connectionName == 'undefined'){
+                    debugger;
+                    // ignor and send data by delay of 10ms
+                   // setTimeout(Tools.Delegate(target,target.callFunction),1000,"Fuck")
+                }else{
+                    params.unshift(this.root.remoteConnectorPathBack+"."+this.connectionName);
+                    params.unshift("callFunctionObject")
+                    params.unshift(this.root.remoteConnectorPath+".hbrAPI");
+                    this.runFunctionObject.apply(this,params)
+                }
+
+
+            }
+        })
+        target.callFunctionAll = Tools.Delegate(target,function(){
+            var params = Array.prototype.slice.call(arguments);
+            if(this.root.sendDataByThis){
+                this.root.connector.sendMessage(["*",params]);
+            }else{
+                params.unshift("callFunctionAll")
+                params.unshift(this.root.remoteConnectorPath+".hbrAPI");
+                this.runFunctionObject.apply(this,params)
+            }
+        })
+        target.callFunctionObject = Tools.Delegate(target,function(){
+            var params = Array.prototype.slice.call(arguments);
+            if(this.root.sendDataByThis){
+                var objName = params[0];
+                params.shift();
+                this.root.connector.sendMessage([objName,params]);
+            }else{
+                // build new path from connection object to reletive path of remote runed object
+                var remotePath = params[0].split(".");
+                var myPath = this.root.remoteConnectorPath.split(".")
+                for(var i = 0 ; i < remotePath.length ; i++){
+                    if(remotePath[i] != myPath[i]){
+                        break;
+                    }
+                }
+                myPath.splice(0,i)
+                remotePath.splice(0,i)
+                params[0] = myPath.concat(remotePath).join(".");
+                //
+                params.unshift("callFunctionObject");
+                params.unshift(this.root.remoteConnectorPath+".hbrAPI");
+                this.runFunctionObject.apply(this,params)
+            }
+        })
+
+        target.runFunctionAllObject = Tools.Delegate(target,function(){
+            var params = Array.prototype.slice.call(arguments);
+            this.root.runFunctionAllObject(this,params)
+        })
+        target.runFunctionObject = Tools.Delegate(this,this.runFunctionObject);
+        if(this.isConnected && this.hbrAPIEvents == false){
+            if(target.onConnected != undefined){
+                target.onConnected();
+            }
+        }
+        target.sendMylocation = Tools.Delegate(target,function(path,ignorPath,config){
+            if(path == undefined){
+                path = "";
+                ignorPath = "";
+            }
+            if(path.length > 80){
+                alert("sendMylocation faild!!!")
+                return;
+            }
+            for (var objName in this.root.registerList) {
+                if(this.root.registerList[objName].type == "remoteIframe"){
+                    if(objName != this.connectionName && objName != ignorPath){
+                        this.runFunctionObject(objName+".hbrAPI","sendMylocation",objName+"."+path,objName,config)
+                    }
+                }else{
+                    if(this.root.sendDataByThis){
+                        this.root.remoteConnectorPath = "";
+                    }else{
+                        if(this.root.remoteConnectorPath != path.slice(0,-1)){
+                            this.root.remoteConnectorPath = path.slice(0,-1);
+                            this.root.remoteConnectorPathBack = this.root.remoteConnectorPath.split(".").reverse().join(".");
+                            this.initSharedConfig(config);
+                        }
+                    }
+                }
+            }
+        });
+    },
+     registerIframe:function(target,name){
+        if(this.registerList == null){
+            this.registerList = new Object()
+        }
+        var iframeConnector = new IframeConnector()
+        this.register(iframeConnector,name);
+        iframeConnector.init(this,target,name);
+    }
+}
+IframeConnector = function(){
+    this.type = "remoteIframe",
+    this.target = null,
+    this.manager = null,
+    this.name = "",
+    this.init = function(manager,target,name){
+        this.target = target;
+        this.name = name;
+        this.manager = manager;
+        this.iframeConnector = new PostMessageManager(this,target,window,name);
+        // ovveride runFuction
+        this.runFunctionObject = this.overrideRunFunctionObject;
+        this.runFunctionAllObject = this.overrideRunFunctionAllObject;
+        // ask for remoteConnection path
+        this.runRemoteFunction("runFunctionAllObject","hbrAPIAskRemoteObjectPath")
+    }
+    // function run by parent
+    this.runRemoteFunction = Tools.Delegate(this,function(){
+        var params = Array.prototype.slice.call(arguments);
+        var funName = params[0];
+        params.shift();
+        this.iframeConnector.callFunction(funName,params);
+    })
+    // function run on iframe
+    this.overrideRunFunctionAllObject = Tools.Delegate(this,function(params){
+        this.manager.runFunctionAllObject.apply(this.manager,[{"connectionName":this.connectionName},params]);
+    })
+    this.overrideRunFunctionObject = Tools.Delegate(this,function(params){
+        this.manager.runFunctionObject.apply(this.manager,params);
+    })
+}
+
+
+

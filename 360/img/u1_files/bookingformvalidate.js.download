@@ -1,0 +1,319 @@
+
+
+/*$(document).ready(function() {
+		getCode();
+		//$("#frmContactus").validationEngine();
+		$('#txt_country').change(getCode);
+	});
+
+function getCode()
+{
+	var ajxurl ="";
+	$('#txt_countrycode').val('');
+	$('#txt_phonecode').val('');
+
+	if($('#txt_country').val() != 'oo')
+	{
+		ajxurl = "<?php echo base_url(); ?>index.php/townhomesggc/getCountryCode/"+$('#txt_country').val();
+		$.ajax({
+			url: ajxurl,
+			dataType: 'html',
+			success: function(respdata)
+			{
+				respdata = jQuery.trim(respdata);
+				$('#txt_countrycode').val('+'+respdata);
+				$('#txt_phonecode').val('+'+respdata);
+			}
+		});
+	}
+}*/
+function Trim(strText) 
+{	
+	// this will get rid of leading spaces 
+	while (strText.substring(0,1) == ' ') 
+		strText = strText.substring(1, strText.length);
+
+	// this will get rid of trailing spaces 
+	while (strText.substring(strText.length-1,strText.length) == ' ')
+		strText = strText.substring(0, strText.length-1);
+
+	return strText;
+}
+
+function extractNumber(obj, decimalPlaces, allowNegative)
+{
+	var temp = obj.value;
+	
+	// avoid changing things if already formatted correctly
+	var reg0Str = '[0-9]*';
+	if (decimalPlaces > 0) {
+		reg0Str += '\\.?[0-9]{0,' + decimalPlaces + '}';
+	} else if (decimalPlaces < 0) {
+		reg0Str += '\\.?[0-9]*';
+	}
+	reg0Str = allowNegative ? '^-?' + reg0Str : '^' + reg0Str;
+	reg0Str = reg0Str + '$';
+	var reg0 = new RegExp(reg0Str);
+	if (reg0.test(temp)) return true;
+
+	// first replace all non numbers
+	var reg1Str = '[^0-9' + (decimalPlaces != 0 ? '.' : '') + (allowNegative ? '-' : '') + ']';
+	var reg1 = new RegExp(reg1Str, 'g');
+	temp = temp.replace(reg1, '');
+
+	if (allowNegative) {
+		// replace extra negative
+		var hasNegative = temp.length > 0 && temp.charAt(0) == '-';
+		var reg2 = /-/g;
+		temp = temp.replace(reg2, '');
+		if (hasNegative) temp = '-' + temp;
+	}
+	
+	if (decimalPlaces != 0) {
+		var reg3 = /\./g;
+		var reg3Array = reg3.exec(temp);
+		if (reg3Array != null) {
+			// keep only first occurrence of .
+			//  and the number of places specified by decimalPlaces or the entire string if decimalPlaces < 0
+			var reg3Right = temp.substring(reg3Array.index + reg3Array[0].length);
+			reg3Right = reg3Right.replace(reg3, '');
+			reg3Right = decimalPlaces > 0 ? reg3Right.substring(0, decimalPlaces) : reg3Right;
+			temp = temp.substring(0,reg3Array.index) + '.' + reg3Right;
+		}
+	}
+	
+	obj.value = temp;
+}
+function blockNonNumbers(obj, e, allowDecimal, allowNegative)
+{
+	var key;
+	var isCtrl = false;
+	var keychar;
+	var reg;
+		
+	if(window.event) {
+		key = e.keyCode;
+		isCtrl = window.event.ctrlKey
+	}
+	else if(e.which) {
+		key = e.which;
+		isCtrl = e.ctrlKey;
+	}
+	
+	if (isNaN(key)) return true;
+	
+	keychar = String.fromCharCode(key);
+	
+	// check for backspace or delete, or if Ctrl was pressed
+	if (key == 8 || isCtrl)
+	{
+		return true;
+	}
+
+	reg = /\d/;
+	var isFirstN = allowNegative ? keychar == '-' && obj.value.indexOf('-') == -1 : false;
+	var isFirstD = allowDecimal ? keychar == '.' && obj.value.indexOf('.') == -1 : false;
+	
+	return isFirstN || isFirstD || reg.test(keychar);
+}
+function fnValidatePAN(Obj) {
+           if (Obj!= "") {
+            var panPat = /^([a-zA-Z]{5})(\d{4})([a-zA-Z]{1})$/;
+          /*  var code = /([C,P,H,F,A,T,B,L,J,G,c,p,h,f,a,t,b,l,j,g])/;
+            var code_chk = Obj.substring(3,4);*/
+            //var aa = Obj.search(panPat);
+		    if (Obj.search(panPat)!= 0) {
+               return false;
+            }
+			return true;
+   			/*if (code.test(code_chk) == false) {
+                 return false;
+            }*/
+			
+        }
+   }
+
+function IsAlphanumeric(inputValue) 
+{
+   var str="qwertyiuposadfghjklxzcvbmnQEWRTYUOIPLKJHGFDSAMNBVCXZ. '";
+   var l = inputValue.length;
+   for (i=0; i < l; i++)
+   {
+	   if (str.indexOf(inputValue.charAt(i)) == -1)
+		   return false;
+   }
+   return true;
+}
+
+function bookingFormValidation()
+{
+	/*alert("Called");
+	document.getElementById("frmBooking").submit();
+	return false;	*/
+	var objbooking_amount = Trim(document.getElementById("txt_bookingamount").value);
+	
+	
+	if(document.getElementById("txt_residencechoice")){
+		var objresidencechoice = Trim(document.getElementById("txt_residencechoice").value);	
+	}
+	if(document.getElementById("txt_bookingarea")){
+		var objbookingarea = Trim(document.getElementById("txt_bookingarea").value);	
+	}
+	if(document.getElementById("txt_country")){
+		var objcountry = Trim(document.getElementById("txt_country").value);	
+	}
+	
+	var objbookingname = Trim(document.getElementById("txt_bookingname").value);
+	
+	var objcity = Trim(document.getElementById("txt_booking_city").value);
+	var objemail = Trim(document.getElementById("txt_bookingemail").value);
+	var objmobno = Trim(document.getElementById("txt_bookingmobile").value);
+	var objcity = Trim(document.getElementById("txt_booking_city").value);
+	var objpannumber = Trim(document.getElementById("txt_booking_pannumber").value);
+	var objpincode = Trim(document.getElementById("txt_booking_pincode").value);
+	/*var txt_booking_pio_oci = Trim(document.getElementById("txt_booking_pio_oci").value);*/
+	
+	var objbookingpio_oci = Trim(document.getElementById("txt_booking_pio_oci").value);
+	
+	document.getElementById("errormsg").innerHTML="";
+	document.getElementById("errormsg").style.display="none";	
+
+	if(Trim(objbooking_amount)==""){
+		document.getElementById("errormsg").innerHTML="Enter Booking Amount";
+		document.getElementById("errormsg").style.display="inline-block";		
+		return false;
+		
+	}
+	if(Trim(objresidencechoice)==""){		
+		document.getElementById("errormsg").innerHTML="Select Choice of Residence";
+		document.getElementById("errormsg").style.display="inline-block";
+		return false;
+	}
+		
+	if(Trim(objbookingarea)==""){		
+		document.getElementById("errormsg").innerHTML="Select Area (sq feet)";
+		document.getElementById("errormsg").style.display="inline-block";
+		return false;
+	}
+	//alert(objbookingname);
+	if(Trim(objbookingname)=="" || Trim(objbookingname)=='Name'){
+		document.getElementById("errormsg").innerHTML="Enter your name";
+		document.getElementById("errormsg").style.display="inline-block";		
+		return false;
+		
+	}else if(!IsAlphanumeric(objbookingname)){
+		document.getElementById("errormsg").innerHTML="Enter your name";
+		document.getElementById("errormsg").style.display="inline-block";		
+		return false;		
+	}
+	if(objemail=="" || objemail=='Email Id'){		
+		document.getElementById("errormsg").innerHTML="Enter your Email ID";
+		document.getElementById("errormsg").style.display="inline-block";		
+		
+		return false;
+	} else {
+		var stremail = (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,5})+$/).test(objemail);
+		if(stremail == false)
+		{			
+			document.getElementById("errormsg").innerHTML="Invalid Email ID";
+			document.getElementById("errormsg").style.display="inline-block";		
+			return false;
+		}		
+	}	
+	//alert(objmobno);
+	if(Trim(objmobno)=="" || Trim(objmobno)=='Mobile No.'){
+		document.getElementById("errormsg").innerHTML="Enter your Mobile Number";
+		document.getElementById("errormsg").style.display="inline-block";		
+		document.getElementById("txt_mobile").focus();
+		return false;
+	}
+	regResult = (/^\d+$/).test(objmobno);
+	if(regResult == false)
+	{			
+		document.getElementById("errormsg").innerHTML="Only digits are allowed in Mobile Number";
+		document.getElementById("errormsg").style.display="inline-block";		
+		//document.getElementById("txt_mobile").focus();
+		return false;
+	}	
+	//alert(objcountry);
+	if(objmobno.length!=10 && objcountry=='India')
+	{
+		document.getElementById("errormsg").innerHTML="Mobile number should be 10 digits";
+		document.getElementById("errormsg").style.display="inline-block";		
+		//document.getElementById("txt_mobile").focus();
+		return false;
+	}
+	/*if(objmobno.length >= 8 && objmobno.length <= 12 && objcountry!='in')
+	{
+		document.getElementById("errormsg").innerHTML="Mobile number should be 8 to 12 digits";
+		document.getElementById("errormsg").style.display="inline-block";		
+		//document.getElementById("txt_mobile").focus();
+		return false;
+	}*/
+	
+	
+	if(Trim(objcity)=="" || Trim(objcity)=='City'){
+		document.getElementById("errormsg").innerHTML="Enter your City";
+		document.getElementById("errormsg").style.display="inline-block";		
+		return false;
+		
+	}else if(!IsAlphanumeric(objcity)){
+		document.getElementById("errormsg").innerHTML="Enter your City";
+		document.getElementById("errormsg").style.display="inline-block";		
+		return false;		
+	} 
+	if((Trim(objpincode)=="" || Trim(objpincode)=='Pincode')){
+		document.getElementById("errormsg").innerHTML="Enter your Pincode";
+		document.getElementById("errormsg").style.display="inline-block";		
+		document.getElementById("txt_booking_pincode").focus();
+		return false;
+	}
+	regResult = (/^\d+$/).test(objpincode);
+	if(regResult == false )
+	{			
+		document.getElementById("errormsg").innerHTML="Only digits are allowed in Pincode";
+		document.getElementById("errormsg").style.display="inline-block";		
+		//document.getElementById("txt_mobile").focus();
+		return false;
+	}	
+	if(objpincode.length!=6 && objcountry=='India')
+	{
+		document.getElementById("errormsg").innerHTML="Pin code should be 6 digits";
+		document.getElementById("errormsg").style.display="inline-block";		
+		//document.getElementById("txt_mobile").focus();
+		return false;
+	}
+	/*if(objpincode.length!=5 && objcountry!='India')
+	{
+		document.getElementById("errormsg").innerHTML="Pin code should be 5 digits";
+		document.getElementById("errormsg").style.display="inline-block";		
+		//document.getElementById("txt_mobile").focus();
+		return false;
+	}*/
+	if((Trim(objpannumber)=="" || Trim(objpannumber)=='PAN Number' && objcountry=='India')){
+		document.getElementById("errormsg").innerHTML="Enter your PAN number";
+		document.getElementById("errormsg").style.display="inline-block";		
+		return false;
+		
+	}else if(objpannumber.length!=10 && objcountry=='India')
+	{
+		document.getElementById("errormsg").innerHTML="Enter valid PAN number";
+		document.getElementById("errormsg").style.display="inline-block";		
+		//document.getElementById("txt_mobile").focus();
+		return false;
+	}else if(!fnValidatePAN(objpannumber)&& objcountry=='India'){
+		document.getElementById("errormsg").innerHTML="Enter valid PAN number";
+		document.getElementById("errormsg").style.display="inline-block";		
+		return false;		
+	} 
+	
+	if((Trim(objbookingpio_oci)=="" || Trim(objbookingpio_oci)=='PIO/OCI' && objcountry!='India')){
+		document.getElementById("errormsg").innerHTML="Enter your PIO/OCI";
+		document.getElementById("errormsg").style.display="inline-block";		
+		return false;
+		
+	}
+	document.getElementById("frmBooking").submit();
+	return false;	
+}
+

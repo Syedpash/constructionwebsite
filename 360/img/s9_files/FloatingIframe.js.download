@@ -1,0 +1,1430 @@
+// Events onSizeChange , onEndSession ,  onDragBegin , onDragEnd , onClose , onShow , onOpenURL , setIcon , connectionEstablish , showFillDiv
+// coBrowserTools.js contain FloatingInIframe logic to manage iframe from iframe
+// ---- flow Iframe
+FloatingIframe = function(name){
+// Event dispatcher
+    this.name = name;
+    this.storageName = "FloatingIframe_"+this.name;
+    this.keyboardFocus = false;
+    this.isMinimizeDown = true;
+    this.animationSpeed = 0.5;
+    this._listeners = {};
+    this.paddingLeft = 20;
+    this.paddingRight = 20;
+    this.paddingTop = 20;
+    this.paddingBottom = 20;
+    this.isHideBackground = true;
+    this.resizeEnable = true;
+    this.isShow = true;
+    this.buttonsWidth = 46;
+    this.noMinimizeButtonPudding = 30;
+    this.fixHeight = 53;
+    this.expertImageSize = 39;
+    this.expertImageTop = -6;
+    this.headerHeight = 37;
+    this.radius = 5;
+    this.borderThin = 0;
+    this.fillDivOpacity = 0.8;
+    this.fillDivColor =  "#c7c7c7";
+    this.dragDisableColor = "#FFFFFF";
+    this.minimizePosition = 15;
+    this.isSaveState = false;
+    this.reloadOnAllTabs = false;
+    this.init = Tools.Delegate(this,function(){
+        this.initFocusState();
+        // = foo;
+        // load on multiple tabs
+        if (typeof(Storage) !== "undefined") {
+            var sessionStorageData = sessionStorage[this.storageName];
+            if(sessionStorageData != undefined){
+                // localstorage shared between all opened tabs
+                var sd = JSON.parse(sessionStorageData);
+                if(sd.isShow){
+                   this.isSaveState = sd.isSaveState;
+                    if(sd.isSaveState == false){
+                        return;
+                    }
+                    this.setWindowSize(sd.width, sd.height);
+                    this.setLocation(parseFloat(sd.offsetLeft), parseFloat(sd.offsetTop));
+                    this.moveTo(parseFloat(sd.offsetLeft), parseFloat(sd.offsetTop));
+                    this.setTitleText(sd.titleSpan);
+                    this.setTitleStyle(sd.titleSpanStyle)
+                    this.setIframeMinimize(sd.minimizeState)
+
+                    this.openURL(sd.url);
+                }
+                // session storage availble only on the tab
+            }
+        } else {
+            // no native support for HTML5 storage :(
+            // maybe try dojox.storage or a third-party solution
+        }
+    })
+    this.setIsSaveCurrentState = Tools.Delegate(this,function(status){
+        this.isSaveState = status;
+        this.saveCurrentState();
+    }),
+    this.saveCurrentState =  Tools.Delegate(this,function(){
+        var saveData = new Object();
+        saveData.url = this.url;
+        saveData.isShow = this.isShow;
+        saveData.titleSpan = this.titleSpan.innerHTML;
+        saveData.titleSpanStyle = this.titleSpanStyle;
+        saveData.width = this.oldWindowWidth;
+        saveData.height = this.oldWindowHeight;
+        saveData.offsetLeft = this.draggableDiv.style.left;
+        saveData.offsetTop = this.draggableDiv.style.top;
+        saveData.minimizeState = this.minimizeState;
+        saveData.isSaveState = this.isSaveState;
+        sessionStorage.setItem(this.storageName, JSON.stringify(saveData));
+    });
+    this.deleCurrentStateSave = function(){
+        sessionStorage.removeItem(this.storageName);
+    }
+    this.coBrowserOpenURL = function(url){
+        CoBrowser.openURL(url);
+        if(url){
+            this.deleCurrentStateSave();
+        }
+    },
+    this.coBroserSocketSetSessionID = function(id){
+        CoBrowser.setSessionID(id);
+    },
+    this.runFunction = function(params){
+        var fName = params.shift();
+        this[fName].apply(this, params);
+    },
+    this.runFunctionOnRoot = function(params){
+        var fName = params.shift();
+        window[fName].apply(window,params);
+    }
+    this.callFunctionCoBrowser = function(params){
+        var fName = params.shift();
+        CoBrowser[fName].apply(CoBrowser, params);
+    },
+    this.callFunction = function(){
+        var params = Array.prototype.slice.call(arguments);
+        this.connector.callFunction("runFunction",params);
+    }
+    this.onSessionStart = function(){
+        this.fire({ type: "onSessionStart" , target: this});
+    }
+    this.addListener =  function(type, listener){
+        if (typeof this._listeners[type] == "undefined"){
+            this._listeners[type] = [];
+        }
+
+        this._listeners[type].push(listener);
+    },
+
+        this.fire =  function(event){
+            if (typeof event == "string"){
+                event = { type: event };
+            }
+            if (!event.target){
+                event.target = this;
+            }
+
+            if (!event.type){  //falsy
+                throw new Error("Event object missing 'type' property.");
+            }
+
+            if (this._listeners[event.type] instanceof Array){
+                var listeners = this._listeners[event.type];
+                for (var i=0, len=listeners.length; i < len; i++){
+                    listeners[i].call(this, event);
+                }
+            }
+        },
+
+        this.removeListener =  function(type, listener){
+            if (this._listeners[type] instanceof Array){
+                var listeners = this._listeners[type];
+                for (var i=0, len=listeners.length; i < len; i++){
+                    if (listeners[i] === listener){
+                        listeners.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+        }
+        this.loadDiv = function(bodyUrl,obj){
+            $hbr.ajax({url:bodyUrl,context: document.body, success: Tools.Delegate(this,function(response){
+                var divTempInitName = "hbrApiDivInit_"+new Date().getTime();
+                response = response.replace("hbrApiDivInit",divTempInitName);
+                response = response.replace("<html","<div")
+                response = response.replace("</html","</div")
+
+
+                // wrap it in jQuery, now it's a collection
+                this.loadedDivElement = $hbr(response);
+                $hbr("body").prepend(this.loadedDivElement)
+                window[divTempInitName](this,obj)
+                this.connector.callFunction("onDivInit");
+            })});
+        }
+      this.removeDiv = function(){
+          try{ this.loadedDivElement.remove(); }catch(err){}
+          //$hbr("#"+name).remove();
+      }
+        //--- private functions ---
+    // transparent box to allaw move events dispatchet on top of iframe
+
+
+    this.initFocusState = function(){
+        if (/*@cc_on!@*/false) { // check for Internet Explorer
+            document.onfocusin = this.onFocus;
+            document.onfocusout = this.onBlur;
+        } else {
+            window.onfocus = this.onFocus;
+            window.onblur = this.onBlur;
+        }
+        this.onFocus();
+    },
+    this.onFocus = Tools.Delegate(this,function(){
+        this.isOnFocus = true;
+        this.connector.callFunction("onFocusChange",true);
+    });
+    this.onBlur = Tools.Delegate(this,function(){
+        this.isOnFocus = false;
+        this.connector.callFunction("onFocusChange",false);
+    });
+
+    this.showSellection = function(top, left, width, height) {
+        this.sellecionBox.style.visibility = "visible";
+        this.sellecionBox.style.left = left + "px";
+        this.sellecionBox.style.top = top + "px";
+        this.sellecionBox.style.width = width + "px";
+        this.sellecionBox.style.height = height + "px";
+        this.sellecionBox.style.visibility = "visible";
+        this.sellecionBox.style["z-index"] = 20000;
+    }
+    this.hideSellection = Tools.Delegate(this,function(){
+        this.sellecionBox.style.visibility = "hidden";
+    });
+    this.stateDirection = 1;
+    this.headerStateColor = 1;
+    this.headerBlinkTimerHandler = null;
+    this.headerBlink = Tools.Delegate(this,function(){
+        // header blink on message incom
+        if(this.minimizeState == this.SIZE_MINIMIZE){
+            this.headerStateColor = 0;
+            this.headerBlinkTimer();
+        }
+    })
+
+    this.headerBlinkTimer = Tools.Delegate(this,function(){
+        this.headerStateColor++;
+        if(this.headerStateColor > 1){
+            this.headerStateColor = 0;
+            // TODO: Blink!!!!!
+            //this.headerDiv.style.background = this.headerColor
+            //this.closeDiv.style.background = this.headerColor
+            //this.minimizeDiv.style.background = this.headerColor
+        }else{
+            //this.headerDiv.style.background = this.headerColor
+            //this.closeDiv.style.background = this.buttonsColor
+            //this.minimizeDiv.style.background = this.buttonsColor
+            if(this.minimizeState != this.SIZE_MINIMIZE){
+                return;
+            }
+        }
+        window.clearTimeout(this.headerBlinkTimerHandler);
+        this.headerBlinkTimerHandler = setTimeout(this.headerBlinkTimer,1000);
+    });
+    this.minimizeClickHandlerConfirm = Tools.Delegate(this,function(){
+        if(this.resizeEnable == false){
+            return;
+        }
+        if(this.minimizeState == 1){
+            this.minimizeState = 2;
+        }else if(this.minimizeState == 2){
+            this.minimizeState = 1;
+        }
+        // set keyboard focus to false
+        this.setIframeMinimize(this.minimizeState);
+        this.onMobileKeyboardChange(false);
+    });
+    // drag window
+    this.dragBegin = Tools.Delegate(this,function () {
+        this.windowManager.updateDragLimits();
+        if(this.minimizeState == this.SIZE_FULL || this.isShow == false){
+            return;
+        }
+        this.dragbleDivTransparent.style.visibility = "visible";
+        this.dragbleIframeDivTransparent.style.visibility = "visible";
+        this.dragbleIframeDivTransparent.style.width = Tools.docWidth()+"px";
+        this.dragbleIframeDivTransparent.style.height = Tools.docHeight()+"px";
+        this.fire({ type: "onDragBegin" , target: this});
+    });
+    this.dragEnd = Tools.Delegate(this,function () {
+        this.dragbleDivTransparent.style.visibility = "hidden";
+        this.dragbleIframeDivTransparent.style.visibility = "hidden";
+        this.dragbleIframeDivTransparent.style.width = "0px";
+        this.dragbleIframeDivTransparent.style.height = "0px";
+        this.fire({ type: "onDragEnd" , target: this});
+        this.saveCurrentState();
+        //this.saveIframeLocation();
+    });
+    this.minimizeButtonVisibility = Tools.Delegate(this,function(status){
+       if(status && this.resizeEnable){
+           if(this.minimizeState == this.SIZE_MINIMIZE){
+               this.maxemizeImage.style.visibility = "visible";
+           }else{
+               this.minimizeImage.style.visibility = "visible";
+           }
+           this.minimizeDiv.style.visibility = "visible";
+       }else{
+           this.minimizeImage.style.visibility = "hidden";
+           this.maxemizeImage.style.visibility = "hidden";
+           this.minimizeDiv.style.visibility = "hidden";
+       }
+        this.saveCurrentState();
+    });
+    this.close = Tools.Delegate(this,function() {
+        this.isShow = false;
+        this.expertImage.style.visibility = "hidden";
+        this.showLogo(false);
+        this.ihIframe.visibility = "hidden";
+        this.ihIframe.style.width = "0px";
+        $hbr(this.draggableDiv).hide();
+        this.dragbleDivTransparent.style.visibility = "hidden";
+        this.minimizeButtonVisibility(false)
+        this.removeDiv();
+        this.fire({ type: "onClose" , target: this});
+    });
+    this.show = Tools.Delegate(this,function() {
+        this.isShow = true;
+        this.ihIframe.visibility = "visible";
+        $hbr(this.draggableDiv).show();
+        this.minimizeButtonVisibility(true);
+        this.setIframeMinimize(this.minimizeState)
+        this.setIconStatus();
+        this.fire({ type: "onShow" , target: this});
+        this.saveCurrentState();
+    });
+    this.openURL = Tools.Delegate(this,function(url) {
+        this.url = url;
+        this.onUnload();
+        this.ihIframe.src = url;
+        this.show();
+        this.enabldeEndSessionOnRoot(true);
+        //this.ihIframe.style.display = "none";
+        this.fire({ type: "onOpenURL" , target: this});
+        this.saveCurrentState();
+    });
+    this.onUnload = Tools.Delegate(this,function(){
+        this.ihIframe.style.display = "none";
+        $hbr(this.loading).show();
+        //setTimeout(this.showIframeContent,1000);
+    });
+    this.showIframeContent = Tools.Delegate(this,function(){
+        $hbr(this.ihIframe).fadeIn();
+        $hbr(this.loading).hide();
+    })
+    this.connectionEstablish = function(url){
+        this.url = url;
+        this.saveCurrentState();
+        this.fire({ type: "connectionEstablish" , target: this});
+    },
+    this.redirect = Tools.Delegate(this,function(url) {
+    debugger;
+        document.location = url;
+    });
+
+    //---  public functions ---
+    this.enableDrag = function(status){
+        this.draggableDiv.dragEnabled = status;
+    };
+    this.enableResize = function(status){
+        this.resizeEnable = status;
+        this.minimizeButtonVisibility(status);
+    }
+
+    this.oldBodyHeight = $hbr('body').css('height');
+    this.oldBodyOverflow = $hbr('body').css('overflow');
+    this.oldHTMLHeight = $hbr('html').css('height');
+    this.oldHTMLOverflow = $hbr('html').css('overflow');
+
+    this.showBodyScroller = function(status){
+        if(status){
+            $hbr('body').css({
+                'overflow':  this.oldBodyOverflow,
+                'height': this.oldBodyHeight
+            });
+            $hbr('html').css({
+                'overflow': this.oldHTMLOverflow,
+                'height': this.oldHTMLHeight
+            });
+        }else{
+
+            //this.oldBodyHeight = $hbr('body').css('height');
+            //this.oldBodyOverflow = $hbr('body').css('overflow');
+            //this.oldHeadHeight = $hbr('html').css('height');
+            //this.oldHeadOverflow = $hbr('html').css('overflow');
+
+            $hbr('html, body').css({
+                'overflow': 'hidden',
+                'height': '100%'
+            });
+        }
+    };
+
+    this.SIZE_FULL = 0;
+    this.SIZE_NORMAL = 1;
+    this.SIZE_MINIMIZE = 2;
+    this.lastStatus = -1;
+
+    this.initExpertIcon = function(){
+        if(Device.isMobile){
+            this.expertImage.style.top = "0px";
+        }else{
+            this.expertImage.style.top = this.expertImageTop+"px";
+        }
+    },
+        this.setIframeMinimize = function(status){
+            if (status instanceof Array) {
+                status = status[0];
+            }
+            this.showLogo(true);
+            if(this.lastMinimizeState == this.SIZE_FULL && status != this.SIZE_FULL){
+                setTimeout(window.scrollTo,10,this.windowManager.lastScrollLeft,this.windowManager.lastScrollTop)
+                setTimeout(this.setOffset,10,this.windowManager.lastOffsetLeft,this.windowManager.lastOffsetTop)
+                //setTimeout(this.setOffset,10,0,0)
+            }
+            this.lastMinimizeState = this.minimizeState;
+            this.minimizeState = status;
+            var changet = false;
+            if(this.lastMinimizeState != this.minimizeState){
+                changet = true;
+            }
+            // enable drag
+            this.enableDrag(true);
+            if(changet)
+                this.mobileZoomFix(Tools.innerWidth());
+
+            if(this.minimizeState == this.SIZE_FULL){
+                this.headerDiv.style.cursor = "default";
+                this.showBodyScroller(false);
+                Tools.setMetaTag("width=device-width, initial-scale=1,  maximum-scale=1 , minimum-scale=1 , user-scalable=0") ;
+                // fill all screen
+                this.setWindowSize(Tools.innerWidth()-this.paddingRight,Tools.innerHeight()-this.paddingBottom-this.fixHeight,false);
+                this.draggableDiv.style.opacity = 1;
+                if(this.keyboardFocus == false){
+                    if(this.isHideBackground){
+                        window.scrollTo(0,2);
+                        this.moveTo(this.paddingLeft,this.paddingTop);
+                        setTimeout(this.moveTo,100,this.paddingLeft,this.paddingTop);
+                    }else{
+                        window.scrollTo(0,Tools.docHeight());
+                        this.moveTo(Tools.getScrollLeft()+this.paddingLeft,Tools.getScrollTop()+this.paddingTop);
+                    }
+                }
+                // move to 0 0 location
+                setTimeout(this.minimizeButtonVisibility,100,false);
+                this.enableDrag(false);
+            }else{
+                this.showBodyScroller(true);
+                this.minimizeButtonVisibility(true);
+                this.ihIframe.style.height = this.ihIframe.oldheight;
+                this.ihIframe.style.width = this.ihIframe.oldWidth;
+                this.headerDiv.style.cursor = "move"
+
+                this.draggableDiv.style.height = this.draggableDiv.oldheight;
+                this.draggableDiv.style.width = this.draggableDiv.oldWidth;
+                this.headerDiv.style.width = this.headerDiv.oldWidth;
+                this.headerDiv.style.height = this.headerDiv.oldheight;
+
+                this.dragbleDivTransparent.style.height = this.dragbleDivTransparent.oldheight;
+                this.dragbleDivTransparent.style.width = this.dragbleDivTransparent.oldWidth;
+            }
+            // button mode
+
+            this.minimizeImage.style.visibility = "hidden";
+            this.maxemizeImage.style.visibility = "hidden";
+            if(this.resizeEnable){
+                if(this.isMinimizeDown &&  (Tools.innerHeight()-(this.getCurrentHeight()+this.windowManager.lastOffsetTop)) < 20 ){
+                    // move down on minimize if its on boton
+                    var left  = Tools.getScrollLeft()+this.windowManager.lastOffsetLeft;
+                    var top = Tools.innerHeight()-this.getCurrentHeight()+this.windowManager.lastScrollTop-5;
+                    this.moveTo(left,top);
+                }
+
+                if(Device.isTablet && this.minimizeState == this.SIZE_NORMAL){
+                    // normals mode
+                    this.maxemizeImage.style.visibility = "visible";
+                    this.draggableDiv.style.opacity = 1;
+                }else  if(this.minimizeState == this.SIZE_NORMAL || this.minimizeState == this.SIZE_FULL){
+                    // normals mode
+                    this.minimizeImage.style.visibility = "visible";
+                    this.draggableDiv.style.opacity = 1;
+                }
+
+            }
+
+
+            if(this.minimizeState == this.SIZE_MINIMIZE){
+                var inH = Tools.innerHeight();
+                var cH = this.getCurrentHeight();
+                var oT = this.windowManager.lastOffsetTop;
+                var st = this.windowManager.lastScrollTop;
+                if(this.isMinimizeDown &&  (Tools.innerHeight()-(this.getCurrentHeight()+this.windowManager.lastOffsetTop)) < 20 ){
+                    // move down on minimize if its on boton
+                    var left  = Tools.getScrollLeft()+this.windowManager.lastOffsetLeft;
+                    var top = Tools.getScrollTop()+this.windowManager.lastOffsetTop+this.getCurrentHeight()-this.headerHeight-5;
+                    this.moveTo(left,top);
+                    setTimeout(this.windowManager.onDragEnd,400);
+                }
+                // minumize
+                if(this.resizeEnable){
+                    this.maxemizeImage.style.visibility = "visible";
+                }
+                // set minimize mode
+                this.ihIframe.style.height = "0px";
+                this.draggableDiv.style.height = this.headerHeight+"px";
+                this.dragbleDivTransparent.style.height = "0px";
+                this.draggableDiv.style.opacity = 0.8;
+                this.showLogo(false);
+            }
+            if(changet)
+                this.mobileZoomFix(Tools.innerWidth());
+            if(this.lastStatus != this.minimizeState){
+                this.fire({ type: "onSizeChange" , target: this });
+                this.connector.callFunction("onSizeChange",this.minimizeState,this.lastStatus)
+            }
+            if(this.resizeEnable){
+                this.expertImage.style.left = (this.buttonsWidth)+"px"
+                this.titleDiv.style.left = this.buttonsWidth+"px";
+                this.titleDiv.style.width = parseInt(this.headerDiv.style.width, 10)-(this.buttonsWidth*2)+"px"
+            }else{
+                this.expertImage.style.left = (this.buttonsWidth-this.noMinimizeButtonPudding)+"px"
+                this.titleDiv.style.left = (this.buttonsWidth-this.noMinimizeButtonPudding)+"px";
+                this.titleDiv.style.width = (this.width-this.buttonsWidth)+"px";
+                this.titleDiv.style.width = parseInt(this.headerDiv.style.width, 10)-(this.buttonsWidth)+"px"
+            }
+            this.updateStyle();
+
+    }
+    this.updateStyle = function(){
+
+        this.closeDiv.jq.removeClass( "fullSize" );
+        this.closeDiv.jq.removeClass( "normalSize" );
+        this.closeDiv.jq.removeClass( "minimizeSize" );
+
+        this.minimizeDiv.jq.removeClass( "fullSize" );
+        this.minimizeDiv.jq.removeClass( "normalSize" );
+        this.minimizeDiv.jq.removeClass( "minimizeSize" );
+
+        this.headerDiv.jq.removeClass( "fullSize" );
+        this.headerDiv.jq.removeClass( "normalSize" );
+        this.headerDiv.jq.removeClass( "minimizeSize" );
+
+        this.titleSpan.jq.removeClass( "normalSize" );
+        this.titleSpan.jq.removeClass( "minimizeSize" );
+        this.titleSpan.jq.removeClass( "fullSize" );
+
+        switch (this.minimizeState){
+            case this.SIZE_NORMAL:
+                this.closeDiv.jq.addClass( "normalSize" );
+                this.minimizeDiv.jq.addClass( "normalSize" );
+                this.headerDiv.jq.addClass( "normalSize" );
+                this.titleSpan.jq.addClass( "normalSize" );
+                break;
+            case this.SIZE_MINIMIZE:
+                this.closeDiv.jq.addClass( "minimizeSize" );
+                this.minimizeDiv.jq.addClass( "minimizeSize" );
+                this.headerDiv.jq.addClass( "minimizeSize" );
+                this.titleSpan.jq.addClass( "minimizeSize" );
+                break;
+            case this.SIZE_FULL:
+                this.closeDiv.jq.addClass( "fullSize" );
+                this.minimizeDiv.jq.addClass( "fullSize" );
+                this.headerDiv.jq.addClass( "fullSize" );
+                this.titleSpan.jq.addClass( "fullSize" );
+                break
+        }
+        this.titleDiv.style.height = this.headerHeight+"px";
+        this.lastStatus = this.minimizeState;
+        this.saveCurrentState();
+    }
+    this.minimize = Tools.Delegate(this,function(){
+        //
+        this.setIframeMinimize(this.SIZE_MINIMIZE);
+    })
+    this.normal = Tools.Delegate(this,function(){
+        this.setIframeMinimize(this.SIZE_NORMAL);
+    });
+    this.fullScreen = Tools.Delegate(this,function(){
+        this.setIframeMinimize(this.SIZE_FULL);
+    });
+    this.setTitleText = Tools.Delegate(this,function(txt){
+        this.titleSpan.innerHTML = txt;
+        this.saveCurrentState();
+    });
+    // example {'color':'blue','font-size':'12px','font-family':'fantasy'}
+    this.setTitleStyle = Tools.Delegate(this,function(style){
+        $hbr(this.titleSpan).css(style);
+        this.titleSpanStyle = style;
+        this.saveCurrentState();
+    });
+
+
+    this.setWindowSize = Tools.Delegate(this,function(width,height,saveSize){
+            if(width == this.oldWindowWidth && height == this.oldWindowHeight && saveSize){
+                return;
+            }
+            isSizeChange = false;
+            if(width != this.oldWindowWidth || height != this.oldWindowHeight){
+                isSizeChange = true;
+            }
+            if(this.minimizeState == this.SIZE_FULL && this.keyboardFocus){
+                if(Tools.isIos){
+                    return;
+                }else{
+                    if(width != this.oldWindowWidth || height > this.oldWindowHeight){
+                        // allaw resize
+                    }else{
+                        return;
+                    }
+                }
+            }
+            if(height == 101){
+                // block resize for iPhone 4
+                return;
+            }
+            if(Device.isMobile && Device.isIos && this.keyboardFocus && height > 150){
+                try{   this.windowManager.isAutoMove = false; }catch (e){};
+                return;
+            }else if(Device.isMobile && Device.isIos){
+                try{   this.windowManager.isAutoMove = true; }catch (e){};
+            }
+            this.oldWindowWidth = width;
+            this.oldWindowHeight = height
+
+            this.ihIframe.style.width = (width) + "px"
+            this.ihIframe.style.height = (height) + "px"
+
+            this.draggableDiv.style.width = (width ) + "px";
+            this.draggableDiv.style.height = (parseInt(height) + this.headerHeight) + "px";
+
+            this.dragbleDivTransparent.style.width = (width ) + "px";
+            this.dragbleDivTransparent.style.height = (height ) + "px";
+
+            this.headerDiv.style.width = (width) + "px";
+
+            // save old params
+            if(saveSize == undefined){
+                this.ihIframe.oldheight = this.ihIframe.style.height;
+                this.draggableDiv.oldheight =  this.draggableDiv.style.height;
+                this.headerDiv.oldheight =  this.headerDiv.style.height;
+                this.dragbleDivTransparent.oldheight =  this.dragbleDivTransparent.style.height;
+
+                this.ihIframe.oldWidth = this.ihIframe.style.width;
+                this.draggableDiv.oldWidth =  this.draggableDiv.style.width;
+                this.headerDiv.oldWidth =  this.headerDiv.style.width;
+                this.dragbleDivTransparent.oldWidth =  this.dragbleDivTransparent.style.width;
+
+                // after size update current state
+                this.setIframeMinimize(this.minimizeState);
+            }
+            if(isSizeChange){
+                this.connector.callFunction("fixResizeBug",width,height);
+            }
+            if(this.minimizeState != this.SIZE_FULL){
+                this.windowManager.onScroll();
+            }
+            this.saveCurrentState();
+        }
+
+    )
+    this.setNormalSize = Tools.Delegate(this,function(width,height){
+        this.ihIframe.style.width = (width + 12) + "px"
+        this.draggableDiv.style.width = (width) + "px";
+        this.draggableDiv.style.height = (parseInt(height) + 50) + "px";
+        this.dragbleDivTransparent.style.width = (width) + "px";
+        this.dragbleDivTransparent.style.height = (height + 10) + "px";
+        this.headerDiv.style.width = (width) + "px";
+        this.setIframeMinimize(this.minimizeState);
+    })
+    this.setLocation = Tools.Delegate(this,function(left,top){
+        this.draggableDiv.style.top = top+"px";
+        this.draggableDiv.style.left = left+"px";
+        this.windowManager.lastOffsetLeft = top+"px";
+        this.windowManager.lastOffsetTop = left+"px";
+    });
+    this.moveTo = Tools.Delegate(this,function(left,top){ // left,top
+        this.draggableDivY.setBegin(parseFloat(this.draggableDiv.style.top));
+        this.draggableDivX.setBegin(parseFloat(this.draggableDiv.style.left));
+        // animate to new location
+        this.draggableDivY.setBegin(parseFloat(this.draggableDiv.style.top));
+        this.draggableDivX.setBegin(parseFloat(this.draggableDiv.style.left));
+
+        // animate to new location
+        this.draggableDivY.continueTo(top, this.animationSpeed)
+        this.draggableDivX.continueTo(left, this.animationSpeed)
+
+        var offsetLeft = left-Tools.getScrollLeft();
+        var offsetTop = top-Tools.getScrollTop();
+
+        this.windowManager.offsetTop = offsetTop;
+        this.windowManager.offsetLeft = offsetLeft;
+        window.clearTimeout(this.saveCurrentStateTimeHandler);
+        this.saveCurrentStateTimeHandler = setTimeout(this.saveCurrentState,2000,left,top);
+    });
+    this.moveToCenter = Tools.Delegate(this,function(){
+        var left  = Tools.getScrollLeft()+(Tools.innerWidth()-width)/2;
+        var top = Tools.getScrollTop()+(Tools.innerHeight()-height)/2;
+        this.moveTo(left,top);
+    });
+    this.setOffset = Tools.Delegate(this,function(left,top){
+        if(left == -1){
+            return;
+        }
+        this.windowManager.offsetTop = top;
+        this.windowManager.offsetLeft = left;
+        this.windowManager.onScroll();
+        this.saveCurrentState();
+    })
+    this.setIcon = Tools.Delegate(this,function(iconURL){
+        this.agentImg = iconURL;
+        this.setIconStatus();
+        this.saveCurrentState();
+    })
+    this.setPoweredBy = Tools.Delegate(this,function(imgURL,y,x){
+        if(imgURL == "none"){
+            return;
+        }
+        var top = y;
+        var right = x;
+        if(imgURL == undefined){
+            imgURL = this.poweredByImg;
+            top = "6"
+            right = 8;
+        }
+        this.poweredBy.innerHTML = '<img style="position: absolute; right:'+(this.buttonsWidth+right)+'px; top: '+top+'px; pointer-events : none; " SRC="'+imgURL+'">';
+        this.saveCurrentState();
+    })
+    this.setIconStatus = Tools.Delegate(this,function(){
+        if(this.agentImg != null){
+            this.expertImage.innerHTML = '<span class="floatingIframe-image-wrap custom" style="position:relative; display:inline-block; background:url('+this.agentImg+') no-repeat center center;"><img src="'+this.agentImg+'" style="opacity: 0;"></span>'
+
+            this.setShowIconStatus(true)
+        }else{
+            this.setShowIconStatus(false);
+        }
+    });
+    this.setLogo = Tools.Delegate(this,function(url){
+        if(url == null){
+            this.logoDiv.innerHTML =  '';
+        }else{
+            this.logoDiv.innerHTML =  '<img class="floatingIframe-logo-image custom" src="'+url+'" border="none" />';
+        }
+        this.showLogo(true);
+    });
+   this.showLogo = Tools.Delegate(this,function(status){
+       if(status && this.minimizeState != this.SIZE_MINIMIZE){
+           this.logoDiv.style.visibility = "visible";
+       }else{
+           this.logoDiv.style.visibility = "hidden";
+       }
+   })
+    this.setShowIconStatus  = Tools.Delegate(this,function(status){
+        if(status){
+            this.expertImage.style.visibility = "visible";
+        }else{
+            this.expertImage.style.visibility = "hidden";
+        }
+    })
+    this.mobileZoomFix = Tools.Delegate(this,function(width){
+        if (Device.isIos) {
+            if(Device.isTablet){
+                //this.mobileMetaTag.content = "width=device-width, initial-scale=1, maximum-scale=2 minimum-scale=1";
+                // if full screen
+                if(this.minimizeState == this.SIZE_FULL){
+                    Tools.setMetaTag("width=device-width, initial-scale=1, maximum-scale=1 minimum-scale=1 , user-scalable=no");
+                }else{
+                    Tools.setMetaTag("user-scalable=yes, initial-scale=0.8, maximum-scale=2, minimum-scale=1 ,  width=device-width");
+                }
+            }else{
+                //this.mobileMetaTag.content = "width=device-width, initial-scale=1,  maximum-scale=1 , minimum-scale=1 , user-scalable=1" ;
+                if(this.minimizeState == this.SIZE_FULL){
+                    Tools.setMetaTag("width=device-width, initial-scale=1,  maximum-scale=1 , minimum-scale=1 , user-scalable=no") ;
+                }else{
+                    if (width <= 300) {
+                        Tools.setMetaTag("width=device-width, initial-scale=1, maximum-scale=1 , minimum-scale=0.65");
+                    }
+                    if (width > 300) {
+                        Tools.setMetaTag("width=device-width, initial-scale=1,  maximum-scale=1 , minimum-scale=0.4");
+                    }
+                }
+
+            }
+        } else if (Device.isAndroid) {
+            if(Device.isTablet){
+                if(this.minimizeState == this.SIZE_FULL){
+                    Tools.setMetaTag("width=device-width, initial-scale=1, maximum-scale=1 minimum-scale=1");
+                }else{
+                    Tools.setMetaTag("user-scalable=no, initial-scale=0.8, maximum-scale=2, minimum-scale=0.4 ,  width=device-width");
+                }
+            }else{
+                Tools.setMetaTag("user-scalable=no, initial-scale=1,maximum-scale=1, minimum-scale=0.5 , width=device-width");
+            }
+        }
+    });
+
+    // run remote from iframe content
+    this.onMobileKeyboardChange = function(status){
+        // setOffset
+        this.keyboardFocus = status;
+        this.windowManager.keyboardFocus = status;
+        if(status){
+            if(Device.isIos && Device.isMobile){
+                this.windowManager.isAutoMoveHeight = false;
+            }
+            //this.windowManager.autoMove(false);
+        }else{
+            if(this.minimizeState == this.SIZE_FULL){
+                this.setIframeMinimize(this.minimizeState);
+            }else{
+
+                //this.windowManager.autoMove(true);
+                this.windowManager.isAutoMoveHeight = true;
+                // move window to visble area
+                this.windowManager.onDragEnd();
+
+            }
+        }
+    }
+    // --- Init iframe window ----
+
+
+    // vars
+
+    this.agentImg = typeof agentImg !== 'undefined' ? agentImg : null;
+    this.windowName = typeof iframeId !== 'undefined' ? windowName : "ihCoBrowser_"+this.name+"_";
+    this.isEndSessiuonByRoot = true;
+    this.minimizeState = 1; // 0 - full screen , 1 - small , 2 - minimized
+    this.lastMinimizeState = 1;
+    // global functions
+    this.endSessionClickHandlerConfirm = Tools.Delegate(this,function(event){
+        event.preventDefault();
+        if(this.isEndSessiuonByRoot){
+            this.fireEndSession();
+        }else{
+            this.connector.callFunction("onEndSessionHandler");
+        }
+    });
+    this.fireEndSession = Tools.Delegate(this,function(event){
+        this.showFillDiv(false);
+        this.deleCurrentStateSave();
+        this.fire({ type: "onEndSessionHandler" , target: this});
+    });
+    this.enabldeEndSessionOnRoot = Tools.Delegate(this,function(status){
+        this.isEndSessiuonByRoot = status;
+    });
+    this.getCurrentHeight = function(){
+        return parseFloat(this.draggableDiv.style.height);
+    }
+    this.getCurrentWidth = function(){
+        return parseFloat(this.ihIframe.style.width)
+    }
+    // fill Div
+    this.fillDiv = document.createElement('div');
+    this.fillDiv.id = this.windowName+"ihFillDiv"
+    this.fillDiv.style.width = "100%";
+    this.fillDiv.style.height = "100%";
+    this.fillDiv.style.backgroundColor = this.fillDivColor;
+    this.fillDiv.style.position = "fixed";
+    this.fillDiv.style.left = "0px";
+    this.fillDiv.style.top = "0px";
+    this.fillDiv.style.opacity = this.fillDivOpacity;
+    this.showFillDiv = Tools.Delegate(this,function(status){
+        if(status){
+            this.fillDiv.style.visibility = "visible";
+            this.fillDiv.style.zIndex = "998";
+        }else{
+            this.fillDiv.style.visibility = "hidden";
+        }
+    });
+    this.showFillDiv(false);
+    // elements
+    this.ihIframe = document.createElement('iframe');
+    this.ihIframe.allowTransparency="true";
+    this.ihIframe.id = this.windowName+"ihIframe";
+
+    this.draggableDiv = document.createElement("div");
+    this.draggableDiv.id = this.windowName+"draggableDiv";
+
+    this.closeDiv = document.createElement("div");
+    this.closeDiv.id = this.windowName+"closeDiv";
+    this.closeDiv.className = "floatingIframe-buttons custom";
+    this.minimizeDiv = document.createElement("div");
+    this.minimizeDiv.id = this.windowName+"minimizeDiv";
+    this.minimizeDiv.className = "floatingIframe-buttons custom";
+    this.expertImage = document.createElement("div");
+    this.expertImage.id = this.windowName+"expertImage";
+    // logo element
+    // texts Logo
+    this.logoDiv = document.createElement("div");
+    this.logoDiv.id = this.windowName+"logoDiv";
+    this.logoDiv.className = "floatingIframe-logo-div custom";
+
+    // texts Logo
+    this.titleDiv = document.createElement("div");
+    this.titleDiv.id = this.windowName+"titleDiv";
+    this.titleSpan = document.createElement("span");
+    this.titleSpan.className = "floatingIframe-title-span custom";
+
+    this.titleSpan.id = this.windowName+"titleSpan";
+    this.titleDiv.style.position = 'absolute';
+    this.titleDiv.style.display = "table";
+    $hbr(this.titleSpan).css({
+        "display":"table-cell",
+        "vertical-align":"middle",
+        "text-align":"center",
+        "cursor": "move"
+    })
+    this.titleDiv.appendChild(this.titleSpan);
+
+    this.poweredBy= document.createElement("div");
+    this.poweredBy.id = this.windowName+"poweredBy";
+    this.minimizeButton = document.createElement("div");
+    this.minimizeButton.id = this.windowName+"minimizeButton";
+    this.headerDiv = document.createElement("div");
+    this.headerDiv.id = this.windowName+"headerDiv";
+
+
+    this.loading= document.createElement("div");
+    this.loading.id = this.windowName+"loading";
+    this.loading.style.position = "absolute";
+    this.loading.style.top = "50%";
+    this.loading.style.left = "46%";
+    this.loading.innerHTML = '<i style="font-size:40px" class="fa fa-spinner fa-pulse custom"></i>';
+
+    this.dragbleDivTransparent = document.createElement("div");
+    this.dragbleDivTransparent.id = this.windowName+"dragbleDivTransparent";
+
+    this.dragbleIframeDivTransparent = document.createElement("div");
+    this.dragbleIframeDivTransparent.id = this.windowName+"dragbleIframeDivTransparent";
+
+    this.sellecionBox = document.createElement("div");
+    this.sellecionBox.id = this.windowName+"sellecionBox";
+
+    this.sellecionBoxBackground = document.createElement('div');
+    this.sellecionBoxBackground.id = this.windowName+"sellecionBoxBackground";
+
+    this.draggableDiv.style.position = "absolute";
+    this.draggableDiv.style.width = "0px";
+    this.draggableDiv.style.height = "0px";
+    this.draggableDiv.style.zIndex = "9999999";
+    this.draggableDiv.style.borderRadius = this.radius+"px";
+    // border
+    this.draggableDiv.style["border-width"] = this.borderThin+"px";
+    this.draggableDiv.style["border-style"] = "solid";
+    this.draggableDiv.style.left = this.initX + "px";
+    this.draggableDiv.style.top = this.initY + "px";
+    //this.draggableDiv.style.display = "none";
+    this.closeDiv.innerHTML =  '<span id="closeSpan" class="closeSpan custom"> </span>';
+
+    this.closeDiv.style.cursor = "pointer";
+    this.minimizeDiv.style.cursor = "pointer";
+
+    // '<img style="position: absolute; left:'+(this.buttonsWidth+57)+'px; top: 10px; pointer-events : none; " SRC="' + Tools.applicationPath + 'com_hbrlabs/UI/coBrowser/assets/liveHelp.png">';
+    this.minimizeButton.innerHTML = ' <a style="z-index: 2 ;  position: absolute ; right:'+(this.minimizePosition+20)+'px; top: 12px"><span class="minimizeSpan custom"></span><img style="visibility: hidden;" src="' + Tools.applicationPath + 'resources/images/max.png" alt="maxemize" border="none" /> </a>';
+    this.minimizeImage = this.minimizeButton.children[0].children[0];
+    this.maxemizeImage = this.minimizeButton.children[0].children[1];
+
+
+
+    this.sellecionBoxBackground.style.backgroundColor = this.dragDisableColor;
+    this.sellecionBoxBackground.style.opacity = "0.3"
+    this.sellecionBoxBackground.style.width = "100%";
+    this.sellecionBoxBackground.style.height = "100%";
+    this.sellecionBoxBackground.style["pointer-events"] = "none";
+
+    this.sellecionBox.style.border = "4px solid ";
+    this.sellecionBox.style["border-radius"] = "2px"
+    this.sellecionBox.style["pointer-events"] = "none";
+    this.sellecionBox.appendChild(this.sellecionBoxBackground);
+    this.sellecionBox.style.position = "absolute";
+    this.showSellection(0, 0, 0, 0);
+    this.sellecionBox.style.visibility = "hidden";
+
+    try {
+        this.sellecionBox.addEventListener("touchstart", this.hideSellection);
+    } catch (e) {
+
+    }
+    this.sellecionBox.addEventListener("click", this.hideSellection);
+
+    this.expertImage.innerHTML = '';
+    this.expertImage.style.visibility = "hidden"
+
+
+    this.ihIframe.frameBorder = "0"
+    this.ihIframe.style.position = "absolute";
+    this.ihIframe.style.top = this.headerHeight + "px";
+    this.ihIframe.style.left = "0px";
+    this.ihIframe.style.borderBottomLeftRadius = this.radius+"px";
+    this.ihIframe.style.borderBottomRightRadius = this.radius+"px";
+
+
+    // alpha
+    this.dragbleDivTransparent.style.position = "absolute";
+    this.dragbleDivTransparent.style.top = this.headerHeight + "px";
+    this.dragbleDivTransparent.style.backgroundColor = this.dragDisableColor;
+    this.dragbleDivTransparent.style.opacity = 0.4;
+    this.dragbleDivTransparent.style.visibility = "hidden";
+
+    this.dragbleIframeDivTransparent.style.position = "absolute";
+    this.dragbleIframeDivTransparent.style.top = "0px";
+    this.dragbleIframeDivTransparent.style.left = "0px";
+    this.dragbleIframeDivTransparent.style.backgroundColor = this.dragDisableColor;
+    this.dragbleIframeDivTransparent.style.opacity = 0;
+    this.dragbleIframeDivTransparent.style.visibility = "hidden";
+
+    this.draggableDiv.style["border-radius"] = this.radius + "px";
+    this.draggableDiv.style["box-sizing"] = "content-box";
+    this.draggableDiv.className = "floating-iframe-backround-div";
+    this.draggableDivY = new IHTween(this.draggableDiv.style, 'top', IHTween.regularEaseInOut, 5, 500, 1, 'px');
+    this.draggableDivY.addListener({onMotionStopped:Tools.Delegate(this,this.saveCurrentState)});
+    this.draggableDivX = new IHTween(this.draggableDiv.style, 'left', IHTween.regularEaseInOut, 5, 500, 1, 'px');
+    this.draggableDivX.addListener({onMotionStopped:Tools.Delegate(this,this.saveCurrentState)});
+    this.closeDiv.style.width = this.buttonsWidth+this.borderThin+"px";
+    this.closeDiv.style.height = this.headerHeight+"px";
+    this.closeDiv.style["border-top-right-radius"] = this.radius + "px";
+    this.closeDiv.style.position = "absolute"
+    this.closeDiv.style.right = "0px";
+
+    this.minimizeDiv.style.width = this.buttonsWidth+"px";
+    this.minimizeDiv.style.height = this.headerHeight+"px";
+    this.minimizeDiv.style["border-top-left-radius"] = this.radius + "px";
+    this.minimizeDiv.style.position = "absolute"
+    this.minimizeDiv.style.right = this.minimizePosition+"px";
+
+    this.expertImage.style.position = "absolute"
+    this.expertImage.style.left = this.buttonsWidth+"px";
+    this.expertImage.style.top = this.expertImageTop+"px";
+    // Border Color
+
+    this.headerDiv.style.height = this.headerHeight+this.borderThin + "px";
+    this.headerDiv.style["border-top-left-radius"] = this.radius + "px";
+    this.headerDiv.style["border-top-right-radius"] = this.radius + "px";
+    this.headerDiv.style.position = "absolute"
+    this.headerDiv.style.top = -this.borderThin+"px";
+    this.headerDiv.style.left ="0px";
+    this.headerDiv.className = "floatingIframe-header custom";
+
+    // Border Color
+//    this.headerDiv.style["border-color"] = "#86a6bf";
+//    this.headerDiv.style["border-width"] = this.borderThin+"px";
+//    this.headerDiv.style["border-style"] = "solid";
+
+    this.draggableDiv.appendChild(this.headerDiv);
+    this.draggableDiv.appendChild(this.closeDiv);
+    this.draggableDiv.appendChild(this.minimizeDiv);
+    this.draggableDiv.appendChild(this.titleDiv);
+    this.draggableDiv.appendChild(this.poweredBy);
+    this.draggableDiv.appendChild(this.loading);
+
+    this.draggableDiv.appendChild(this.minimizeButton);
+
+    Tools.getBody(true).appendChild(this.fillDiv);
+    Tools.getBody(true).appendChild(this.dragbleIframeDivTransparent);
+    Tools.getBody(true).appendChild(this.draggableDiv);
+
+
+    $hbr(this.loading).hide();
+
+    this.draggableDiv.appendChild(this.ihIframe)
+    this.draggableDiv.appendChild(this.expertImage);
+    this.draggableDiv.appendChild(this.dragbleDivTransparent)
+
+    this.draggableDiv.appendChild(this.logoDiv)
+
+
+    // save jquery pointers
+    this.closeDiv.jq = $hbr(this.closeDiv );
+    this.minimizeDiv.jq = $hbr(this.minimizeDiv );
+    this.headerDiv.jq = $hbr(this.headerDiv );
+    this.titleSpan.jq = $hbr(this.titleSpan );
+
+    if(Device.isTouch && Device.isPC == false){
+        // windows or mobile drag
+        this.MobileDrag = new MobileDrag();
+        this.MobileDrag.init(this.draggableDiv);
+        this.MobileDrag.onDragBegin = this.dragBegin;
+        this.MobileDrag.onDragEnd = this.dragEnd;
+
+        this.closeDiv.addEventListener("touchstart", this.endSessionClickHandlerConfirm);
+        // close image
+        this.draggableDiv.getElementsByTagName("*")[0].addEventListener("touchstart", this.endSessionClickHandlerConfirm)
+
+        //this.minimizeDiv.addEventListener("touchstart", this.minimizeClickHandlerConfirm);
+        //this.minimizeButton.addEventListener("touchstart", this.minimizeClickHandlerConfirm)
+
+        this.MobileDrag.onClick = this.minimizeClickHandlerConfirm;
+        //this.MobileDrag.onClick = this.minimizeClickHandlerConfirm;
+    }else{
+        this.closeDiv.addEventListener("click",  this.endSessionClickHandlerConfirm);
+        this.minimizeDiv.addEventListener("click", this.minimizeClickHandlerConfirm);
+        this.minimizeButton.getElementsByTagName("*")[0].addEventListener("click", this.minimizeClickHandlerConfirm)
+        // close image
+        this.draggableDiv.getElementsByTagName("*")[0].addEventListener("click", this.endSessionClickHandlerConfirm)
+    }
+    Drag.init(this.draggableDiv);
+    Drag.onDragBegin = this.dragBegin;
+    Drag.onDragEnd = this.dragEnd;
+
+    // postMessage Manager
+    var targe = this.ihIframe.contentWindow;
+    this.connector = new PostMessageManager(this,targe,window,this.name);
+
+    // on scroll resize locate window on right position
+    this.windowManager = new FloatingIframeManager(this);
+
+    this.ihIframe.onload = this.showIframeContent;
+
+    this.init();
+}
+
+FloatingIframeManager = function(win){
+    this.keyboardFocus = false;
+    this.disableMoveOnKeyboardOnFocus = true;
+    this.flowWin = win;
+    this.isAutoMove = true;
+    this.isAutoMoveWidth = true;
+    this.isAutoMoveHeight = true;
+    this.draggableDiv = this.flowWin.draggableDiv;
+    this.ihIframe = this.flowWin.ihIframe;
+    this.isChatOnFocus = false;
+    this.offsetLeft = 0;
+    this.offsetTop = 0;
+    this.lastOffsetLeft = -1;
+    this.lastOffsetTop = -1;
+    this.lastScrollTop = 0;
+    this.lastScrollLeft = 0;
+    this.onDragEnd = Tools.Delegate(this,function(){
+        this.offsetLeft = this.draggableDiv.offsetLeft-Tools.getScrollLeft();
+        this.offsetTop = this.draggableDiv.offsetTop-Tools.getScrollTop();
+
+        this.lastOffsetLeft = this.offsetLeft;
+        this.lastOffsetTop = this.offsetTop;
+    })
+    this.flowWin.addListener("onDragEnd",this.onDragEnd)
+
+    this.onSizeChange = Tools.Delegate(this,function(){
+
+    })
+    this.flowWin.addListener("onSizeChange",this.onSizeChange)
+    this.onScroll = Tools.Delegate(this,function(){
+        if(this.keyboardFocus){
+            if(this.disableMoveOnKeyboardOnFocus){
+                return;
+            }
+        }
+        if(this.isAutoMove == false){
+            //return;
+        }
+        if(this.flowWin.minimizeState == 0){
+            this.flowWin.setIframeMinimize(this.flowWin.minimizeState);
+            return;
+        }
+
+        var left  = Tools.getScrollLeft();
+        var top = Tools.getScrollTop();
+        // move to static location
+        var oldTop = this.draggableDiv.style.top;
+        var oldLeft = this.draggableDiv.style.left;
+
+        if(Device.isPC  || this.isChatOnFocus == false){
+            this.draggableDiv.style.left = this.offsetLeft+left+"px";
+            this.draggableDiv.style.top = this.offsetTop+top+"px";
+        }
+        // move to allway sea the chat
+        var chatHeight = parseFloat(this.ihIframe.style.height) + this.ihIframe.offsetTop;
+        if ((top + Tools.innerHeight()) < (this.draggableDiv.offsetTop + chatHeight)) {
+            this.draggableDiv.style.top = (top + Tools.innerHeight() - chatHeight) + "px";
+        }
+        if (parseFloat(this.draggableDiv.style.top) < top) {
+            this.draggableDiv.style.top = top + "px";
+        }
+        // fix left
+        var chatWidth = parseFloat(this.ihIframe.style.width);
+        //console.log((this.getScrollLeft()+this.innerWidth())+" < "+(this.draggableDiv.offsetLeft+chatWidth));
+        if ((left + Tools.innerWidth()) < (this.draggableDiv.offsetLeft + chatWidth)) {
+            this.draggableDiv.style.left = (left + Tools.innerWidth() - chatWidth) + "px";
+        }
+        if (parseFloat(this.draggableDiv.style.left) < left) {
+            this.draggableDiv.style.left = left + "px";
+        }
+        var newTop = parseFloat(this.draggableDiv.style.top);
+        var newLeft = parseFloat(this.draggableDiv.style.left);
+        this.draggableDiv.style.top = oldTop;
+        this.draggableDiv.style.left = oldLeft;
+        if(this.isAutoMoveHeight == false){
+            this.flowWin.moveTo(newLeft,oldTop);
+        }else if(this.isAutoMoveWidth == false){
+            this.flowWin.moveTo(oldLeft,newTop);
+        }else{
+            this.flowWin.moveTo(newLeft,newTop);
+        }
+        this.lastScrollLeft = left;
+        this.lastScrollTop = top;
+    });
+
+    this.onResize = Tools.Delegate(this,function(){
+        if(this.isAutoMove == false){
+            return;
+        }
+        this.flowWin.setIframeMinimize(this.flowWin.minimizeState);
+        this.checkIfOrientationchange();
+        this.onScroll();
+    });
+    this.fixWindowByDragLimits = Tools.Delegate(this,function(){
+        this.updateDragLimits();
+        // prevent locate iframe on open
+        try{
+            this.draggableDiv.onmousedown();
+            document.onmousemove();
+            document.onmouseup();
+        }catch (e){
+
+        }
+        this.flowWin.dragEnd();
+    });
+    this.updateDragLimits = Tools.Delegate(this,function(){
+        //
+        var scrollWidth = 0;
+        if ($hbr(document).height() > $hbr(window).height()) {
+            scrollWidth = 8
+        }
+        // update max size
+        this.draggableDiv.minY = this.lastScrollTop;
+        this.draggableDiv.maxY = Tools.innerHeight()-this.flowWin.getCurrentHeight()-10+this.lastScrollTop;
+        this.draggableDiv.minX = this.lastScrollLeft;
+        this.draggableDiv.maxX = Tools.innerWidth()-this.flowWin.getCurrentWidth()-scrollWidth+this.lastScrollLeft;
+    })
+
+    this.orientationMode = -1;
+    this.checkIfOrientationchange = function(){
+        // check if orientationChange
+        var mode = -1;
+        if(window.innerHeight > window.innerWidth){
+            Device.isTablet ? mode = 90 : mode = 0;
+        }else{
+            Device.isTablet ? mode = 0 : mode = 90;
+        }
+        if(this.orientationMode != mode){
+            this.orientationMode = mode;
+            this.flowWin.connector.callFunction("orientationchange",this.orientationMode);
+        }
+    },
+        this.init = Tools.Delegate(this,function(){
+            setTimeout(Tools.Delegate(this,this.onScroll),100);
+            ToolsEevents.init(true,true,false);
+            ToolsEevents.addListener("onScroll",this.onScroll)
+            ToolsEevents.addListener("onResize",this.onResize)
+            this.onResize();
+        });
+    setTimeout(this.init,1000);
+}
+
+// --- Mobile Drag ----
+var MobileDrag = function(){
+    this.obj = null;
+    this.fixX = 0;
+    this.fixY = 0;
+    this.clickX = 0;
+    this.clickY = 0;
+    this.clickStart = 0;
+    this.onDragBegin =  function(){},
+        this.onDragEnd = function(){},
+        this.onClick = function(){},
+        this.init = function (o) {
+            this.obj = o;
+            o.addEventListener('touchstart', Tools.Delegate(this,this.touchstart), false)
+            o.addEventListener('touchend',  Tools.Delegate(this,this.touchend), false);
+            o.addEventListener('touchmove',  Tools.Delegate(this,this.touchmove), false);
+        }
+    this.touchstart = function () {
+        event.preventDefault()
+        var o = this.obj;
+        this.clickX = parseInt(o.style.left, 10);
+        this.clickY = parseInt(o.style.top, 10)
+        if (event.targetTouches.length == 1) {
+            var touch = event.targetTouches[0];
+
+            this.fixX = (touch.pageX - this.clickX);
+            this.fixY = (touch.pageY - this.clickY);
+            //console.log("touchstart " + MobileDrag.fixX+","+ MobileDrag.fixY);
+        }
+        if(o.dragEnabled == false){
+            return;
+        }else{
+            this.onDragBegin();
+        }
+        //console.log("touchstart")
+    }
+    this.touchend = function (event) {
+        event.preventDefault()
+        var o = this.obj;
+        this.releaseX = parseInt(o.style.left, 10);
+        this.releaseY = parseInt(o.style.top, 10);
+        if(Math.abs(this.clickX-this.releaseX) < 2 && Math.abs(this.clickY-this.releaseY) < 2){
+            this.onClick();
+            this.onDragEnd();
+            this.clickX = 0;
+            this.clickY = 0;
+        }
+        if(o.dragEnabled == false){
+            return;
+        }
+        // console.log("touchend");
+        this.onDragEnd();
+
+    },
+        this.touchmove = function (event) {
+            var o = this.obj;
+            this.click = false;
+            if(o.dragEnabled == false){
+                return;
+            }
+            if (event.targetTouches.length == 1) {
+                var touch = event.targetTouches[0];
+                // Place element where the finger is
+                if ((touch.pageX - this.fixX) > 0) {
+                    o.style.left = (touch.pageX - this.fixX) + 'px';
+                }
+                if ((touch.pageY - this.fixY) > 0) {
+                    o.style.top = (touch.pageY - this.fixY) + 'px';
+
+                }
+            }
+            //console.log("touchmove");
+        }
+}
+
+// Drag Div mobile chat
+
+Drag = {
+
+    obj:null,
+    onDragBegin: function(){},
+    onDragEnd : function(){},
+    init:function (o, oRoot, minX, maxX, minY, maxY, bSwapHorzRef, bSwapVertRef, fXMapper, fYMapper) {
+        o.onmousedown = Drag.start;
+        o.dragEnabled = true;
+        o.hmode = bSwapHorzRef ? false : true;
+        o.vmode = bSwapVertRef ? false : true;
+
+        o.root = oRoot && oRoot != null ? oRoot : o;
+
+        if (o.hmode && isNaN(parseInt(o.root.style.left))) o.root.style.left = "0px";
+        if (o.vmode && isNaN(parseInt(o.root.style.top))) o.root.style.top = "0px";
+        if (!o.hmode && isNaN(parseInt(o.root.style.right))) o.root.style.right = "0px";
+        if (!o.vmode && isNaN(parseInt(o.root.style.bottom))) o.root.style.bottom = "0px";
+
+        o.minX = typeof minX != 'undefined' ? minX : null;
+        o.minY = typeof minY != 'undefined' ? minY : null;
+        o.maxX = typeof maxX != 'undefined' ? maxX : null;
+        o.maxY = typeof maxY != 'undefined' ? maxY : null;
+
+        o.xMapper = fXMapper ? fXMapper : null;
+        o.yMapper = fYMapper ? fYMapper : null;
+
+        o.root.onDragStart = new Function();
+        o.root.onDragEnd = new Function();
+        o.root.onDrag = new Function();
+    },
+
+    start:function (e) {
+
+        Drag.onDragBegin();
+
+        var o = Drag.obj = this;
+        if(o.dragEnabled == false){
+            return;
+        }
+        e = Drag.fixE(e);
+        var y = parseInt(o.vmode ? o.root.style.top : o.root.style.bottom);
+        var x = parseInt(o.hmode ? o.root.style.left : o.root.style.right);
+        o.root.onDragStart(x, y);
+
+        o.lastMouseX = e.clientX;
+        o.lastMouseY = e.clientY;
+
+        if (o.hmode) {
+            if (o.minX != null)    o.minMouseX = e.clientX - x + o.minX;
+            if (o.maxX != null)    o.maxMouseX = o.minMouseX + o.maxX - o.minX;
+        } else {
+            if (o.minX != null) o.maxMouseX = -o.minX + e.clientX + x;
+            if (o.maxX != null) o.minMouseX = -o.maxX + e.clientX + x;
+        }
+
+        if (o.vmode) {
+            if (o.minY != null)    o.minMouseY = e.clientY - y + o.minY;
+            if (o.maxY != null)    o.maxMouseY = o.minMouseY + o.maxY - o.minY;
+        } else {
+            if (o.minY != null) o.maxMouseY = -o.minY + e.clientY + y;
+            if (o.maxY != null) o.minMouseY = -o.maxY + e.clientY + y;
+        }
+
+        document.onmousemove = Drag.drag;
+        document.onmouseup = Drag.end;
+
+        return false;
+    },
+
+    drag:function (e) {
+        e = Drag.fixE(e);
+        var o = Drag.obj;
+
+        var ey = e.clientY;
+        var ex = e.clientX;
+        var y = parseInt(o.vmode ? o.root.style.top : o.root.style.bottom);
+        var x = parseInt(o.hmode ? o.root.style.left : o.root.style.right);
+        var nx, ny;
+
+        if (o.minX != null) ex = o.hmode ? Math.max(ex, o.minMouseX) : Math.min(ex, o.maxMouseX);
+        if (o.maxX != null) ex = o.hmode ? Math.min(ex, o.maxMouseX) : Math.max(ex, o.minMouseX);
+        if (o.minY != null) ey = o.vmode ? Math.max(ey, o.minMouseY) : Math.min(ey, o.maxMouseY);
+        if (o.maxY != null) ey = o.vmode ? Math.min(ey, o.maxMouseY) : Math.max(ey, o.minMouseY);
+
+        nx = x + ((ex - o.lastMouseX) * (o.hmode ? 1 : -1));
+        ny = y + ((ey - o.lastMouseY) * (o.vmode ? 1 : -1));
+
+        if (o.xMapper)        nx = o.xMapper(y)
+        else if (o.yMapper)    ny = o.yMapper(x)
+        if (nx < 0) {
+            nx = 0;
+        }
+        if (ny < 0) {
+            ny = 0;
+        }
+        Drag.obj.root.style[o.hmode ? "left" : "right"] = nx + "px";
+        Drag.obj.root.style[o.vmode ? "top" : "bottom"] = ny + "px";
+        Drag.obj.lastMouseX = ex;
+        Drag.obj.lastMouseY = ey;
+
+        Drag.obj.root.onDrag(nx, ny);
+        return false;
+    },
+
+    end:function () {
+        Drag.onDragEnd();
+
+        document.onmousemove = null;
+        document.onmouseup = null;
+        Drag.obj.root.onDragEnd(parseInt(Drag.obj.root.style[Drag.obj.hmode ? "left" : "right"]),
+            parseInt(Drag.obj.root.style[Drag.obj.vmode ? "top" : "bottom"]));
+        Drag.obj = null;
+    },
+
+    fixE:function (e) {
+        if (typeof e == 'undefined') e = window.event;
+        if (typeof e.layerX == 'undefined') e.layerX = e.offsetX;
+        if (typeof e.layerY == 'undefined') e.layerY = e.offsetY;
+        return e;
+    }
+};

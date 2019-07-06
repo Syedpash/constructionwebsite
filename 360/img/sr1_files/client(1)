@@ -1,0 +1,249 @@
+/* chat */
+.chat-msg-span.custom { /* span text inside the bubbles */
+    font-family: Lato, Verdana, Arial, sans-serif;
+    color: white;
+}
+.chat-right-bubble.custom {
+    background: #0071B5;
+    font-family: Lato, Verdana, Arial, sans-serif;
+}
+
+.chat-left-bubble.custom {
+    background: #116A8D;
+    font-family: Lato, Verdana, Arial, sans-serif;
+}
+.chat-right-bubble-arrow.custom {
+    border-color: transparent #0071B5;
+}
+
+.chat-left-bubble-arrow.custom {
+    border-color: transparent #116A8D;
+}
+.chat-system-ballon-div.custom {
+    font-family: Lato, Verdana, Arial, sans-serif;
+    background: white;
+    border-color: white;
+    color: #293333;
+}
+
+.chat-system-ballon-div .chat-msg-span.custom {
+    color: #293333;
+}
+
+.chat-submit-button.custom {
+    background: #0071B5;
+    color: white;
+}
+
+#optionsDropUp.custom a{
+    color: #0071B5;
+}
+/* Alerts */
+.alert-body .ui-widget-header {
+    background: #0071B5;
+    color: #fff;
+    font-weight: normal;
+}
+
+.alert-body button.ui-widget.ui-button {
+    background: #0071B5;
+    color: white;
+    font-family: Lato, Verdana, Arial, sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.alert-body button.ui-widget.ui-button:hover {
+    background: #0071B5;
+}
+
+/* Users Manager */
+.users-manager-div.custom {
+    background-color: #EDF1F2;
+}
+.users-manager-info-button.custom {
+    background-color:#0071B5;
+    color: #ffffff;
+    border-bottom-color: #000;
+}
+
+/************ Floating Iframe ************/
+.floatingIframe-header.custom{
+    background-color: #0071B5;
+}
+
+.floatingIframe-buttons.custom{
+    background-color: #0071B5;
+}
+
+div span.floatingIframe-title-span.custom  {
+    font-family: Lato, Verdana, Arial, sans-serif;
+    font-size:16px;
+}
+
+
+.floatingIframe-header.fullSize.custom{
+    background-color: #D0CBD2;
+    color:#293333;
+}
+.floatingIframe-header.normalSize.custom{
+    background-color: #0071B5;
+    color: #fff;
+}
+.floatingIframe-header.minimizeSize.custom{
+    background-color: #0071B5;
+    color: #fff;
+}
+
+
+.floatingIframe-buttons.fullSize.custom{
+    background-color: #D0CBD2;
+    color:#293333;
+}
+.floatingIframe-buttons.normalSize.custom{
+    background-color: #0071B5;
+    color: #fff;
+}
+.floatingIframe-buttons.minimizeSize.custom{
+    background-color: #0071B5;
+    color: #fff;
+}
+
+.mobile-title-div.custom {
+    background-color: #0071B5;
+    color:white;
+}
+
+/************ Audio and Video ************/
+.audioVideo_button.custom {
+    color: #ffffff;
+    background: #0071B5;
+    border-bottom-style: solid;
+    border-bottom-color: #000;
+}
+.audioVideo_button.custom:hover {
+    background: #0071B5;
+}
+div.audioVideo_circle.custom {
+    background: #116A8D;
+}
+
+#AVBackgroundCanvas.custom {
+    background-color: #EDF1F2;
+}
+
+.AVBackgroundCanvas.custom {
+    background: linear-gradient(#EDF1F2, rgba(0, 0, 0, 0));
+}
+/************ Preloader ************/
+.fa.fa-spinner.fa-pulse.custom {
+    color: #0071B5;
+}
+
+/************ WebToPhone ************/
+.webToPhone_button.custom {
+    color: #ffffff;
+    background: #0071B5;
+    border-bottom-color: #000;
+}
+.linkColor.custom {
+    color: #0071B5;
+}
+
+/*********** PreCall Form ********************/
+.form-submit-button.custom {
+    font-weight: normal;
+    color: #ffffff;
+    background: #0071B5;
+    border-bottom-style: solid;
+    border-bottom-color: #000;
+    border-bottom-width: 1px;
+    border-radius: 3px;
+    font-family: Lato, Verdana, Arial, sans-serif;
+    font-size:15px;
+}
+
+.form-submit-button.custom:hover {
+    background: #0071B5;
+    border-bottom-color: #000;
+}
+
+.link-button.custom {
+    background-color: #0071B5;
+    color: #0071B5;
+}
+.icon-button.custom {
+    background-color: #116A8D;
+    color: #116A8D;
+}
+.app-background.custom {
+    background-color: #fafcfc;
+}
+.normal-button.custom {
+    background-color: #0071B5;
+    color: #ffffff;
+}
+/*********** Invite window ********************/
+.inviteWindow_button.custom {
+    font-family: Lato, Verdana, Arial, sans-serif;
+    background-color: #0071B5 !important;
+    color:white;
+}
+
+.inviteWindow_button.custom:not([disabled]):hover {
+    background-color:#0071B5 !important;
+    color: white !important;
+}
+
+.inviteWindow_text.custom{
+    font-family: Lato, Verdana, Arial, sans-serif;
+    color:#293333 !important;
+}
+.inviteWindow_icon_color.custom{
+    color:#116A8D !important;
+}
+.inviteWindow_text_input.custom{
+    font-family: Lato, Verdana, Arial, sans-serif;
+    color:grey !important;
+}
+
+md-input-container.custom:not(.md-input-invalid).md-input-focused.custom .md-input.custom {
+    border-color: #0071B5 !important;
+}
+
+/*************** Brand Description ******************/
+.brandDiscription_box.custom{
+ background-color: #0071B5;
+}
+
+/**************  File Chooser ***********************/
+/* line below the tabs in the chooser */
+.md-ink-bar.custom{
+    background-color: #0071B5 !important;
+}
+/* Tabs background color */
+.tabsBackground.custom{
+    background-color: #FFFFFF;
+}
+/* Tabs text color */
+md-tabs.custom > md-tabs-wrapper.custom > md-tabs-canvas.custom > md-pagination-wrapper.custom > md-tab-item:not([disabled]).custom {
+    color: #292929 !important;
+}
+
+md-tabs.custom > md-tabs-wrapper.custom > md-tabs-canvas.custom > md-pagination-wrapper.custom > md-tab-item:not([disabled]).md-active.custom, md-tabs.custom > md-tabs-wrapper.custom > md-tabs-canvas.custom > md-pagination-wrapper.custom > md-tab-item:not([disabled]).md-active.custom md-icon.custom, md-tabs.md-accent.custom > md-tabs-wrapper.custom > md-tabs-canvas.custom > md-pagination-wrapper.custom > md-tab-item:not([disabled]).md-active.custom md-icon.custom, md-tabs.md-default-theme.md-accent.custom > md-tabs-wrapper.custom > md-tabs-canvas.custom > md-pagination-wrapper.custom > md-tab-item:not([disabled]).md-focused.custom, md-tabs.md-default-theme.md-accent.custom > md-tabs-wrapper.custom > md-tabs-canvas.custom > md-pagination-wrapper.custom > md-tab-item:not([disabled]).md-focused.custom md-icon.custom {
+    color: #274b5a !important;
+}
+
+/* Browse button background color*/
+.upload-file-button.custom{
+    background-color: #0071B5 !important;
+}
+
+/* file uploading progress bar colors */
+md-progress-linear.md-default-theme.custom .md-container.custom{
+    background-color: #e2ebff;
+}
+
+md-progress-linear.md-default-theme .md-bar {
+    background-color: #116A8D !important;
+}

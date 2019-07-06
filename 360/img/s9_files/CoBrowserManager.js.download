@@ -1,0 +1,243 @@
+CoBrowserManager = function(){
+    this.left = 0;
+    this.right = 0;
+    this.top = 0;
+    this.down = 0;
+    this.iframe = null
+    this.isExpert = false;
+    this.autoResize = true; // if set paddingSize true else on setSize False
+    this.isShow = true;
+    this.init = function(){
+        // remove old iframe
+        $("#coBrowserIframe").remove();
+        //
+        this.iframe = $('<iframe />');
+        this.iframe[0].id = "coBrowserIframe";
+        this.iframe.appendTo('body');
+        //
+        /*
+        window.onbeforeunload = function() {
+            return "Are you sure you want to navigate away?";
+        }
+        */
+    },
+    this.initShow = function(){
+        if(this.isShow){
+            this.show();
+        }else{
+            this.hide();
+        }
+    },
+    this.redirectPage = function(url){
+        console.log("coBrowserManager redirect page to "+url);
+        window.location.href = url;
+    },
+    this.refreshPage = function(){
+        location.reload();
+        //history.go(0)
+    },
+    this.show = Tools.Delegate(this,function(){
+        this.isShow = true;
+        this.iframe.css("visibility","visible");
+        this.updateSize();
+        this.initToolBarTimeOut();
+        setTimeout(this.initToolBarTimeOut,2000);
+    }),
+    this.initToolBarTimeOut = Tools.Delegate(this,function(){
+        this.registeredObject.callFunctionObject(CoBrowserManagerObjects.TOOLS,"initToolBar");
+    })
+    this.showToAll = Tools.Delegate(this,function(){
+        this.show();
+        this.registeredObject.callFunctionObject(CoBrowserManagerObjects.COBROWSER_MANAGER,"show");
+    }),
+    this.hide = Tools.Delegate(this,function(){
+        this.isShow = false;
+        // FIXME: IE9 flash bug on visibility hidden
+        //this.iframe.css("visibility","hidden");
+        this.iframe.css({"position" :  "absolute" , "border" : "0px" , "width" : "0px" , "height" : "0px" , "top" : "0px" , "left" : "0px"});
+    }),
+    this.hideToAll = Tools.Delegate(this,function(){
+        this.hide();
+        this.registeredObject.callFunctionObject(CoBrowserManagerObjects.COBROWSER_MANAGER,"hide");
+    }),
+    // rowser size don't change dynamically
+    this.setSize = function(left,top,width,height){
+        debugger;
+        this.autoResize = false;
+        this.left = left; this.top = top; this.width = width ; this.height = height ;
+        this.iframe.css({"position" :  "absolute" , "border" : "0px" , "width" : width+"px" , "height" : height+"px" , "top" : top+"px" , "left" : left+"px"});
+    }
+    // browser resize automatically on size change
+    this.setPaddingSize = Tools.Delegate(this,function(left,right,top,down){
+        this.autoResize = true;
+        this.left = left; this.right = right ; this.top = top ; this.down = down;
+        this.updateSize();
+    },
+    this.onResize = function(){
+        clearTimeout( this.updateSizeTimer);
+        this.updateSizeTimer = setTimeout(Tools.Delegate(this,this.updateSize),250);
+        // fix on resize in there scrollers thet show
+        clearTimeout( this.updateSizeTimer2);
+        this.updateSizeTimer2 = setTimeout(Tools.Delegate(this,this.updateSize),300);
+    },
+    this.updateSize = function(){
+        if(!this.isShow){
+            return;
+        }
+        if(!this.autoResize){
+            this.setSize(this.left,this.top,this.width,this.height);
+            return;
+        }
+        var width = $(window).innerWidth()-this.left-this.right;
+        var height = $(window).innerHeight()-this.top-this.down;
+        //if(Device.isIos){
+            this.iframe.css({"position" :  "absolute" , "border" : "0px" , "width" : "100%" , "height" : "100%" , "top" : "0px" , "left" : "0px"});
+        //}else{
+        //    this.iframe.css({"position" :  "absolute" , "border" : "0px" , "width" : width+"px" , "height" : height+"px" , "top" : this.top+"px" , "left" : this.left+"px"});
+        //}
+
+        this.registeredObject.runFunctionAllObject("onResize");
+    })
+    this.startAutoUpdateSize = function(){
+
+    },
+    this.stopAutoUpdateSize = function(){
+
+    },
+    this.setTransparent = Tools.Delegate(this,function(status){
+        if(status){
+            this.iframe.css("background-color" , "");
+        }else{
+            this.iframe.css("background-color" , "#FFFFFF");
+        }
+    }),
+    this.loadCustomer = function(config){
+        this.isExpert = false;
+        Tools.config = config;
+        Tools.setUrlParams(Tools.getUrlParams());
+        var url = Tools.applicationPath+'/coBrowser3/pc/Shell/customerShell.html?p='+Tools.getUrlParams();
+        this.iframe.attr('src',url);
+    },
+    this.loadExpert = function(config){
+        this.isExpert = true;
+        Tools.config = config;
+        Tools.setUrlParams(Tools.getUrlParams());
+        var url = Tools.applicationPath+'/coBrowser3/pc/Shell/expertShell.html?p='+Tools.getUrlParams();
+        this.iframe.attr('src',url);
+    },
+    this.unload = function(){
+        this.hideToAll();
+        this.registeredObject.callFunctionObject(CoBrowserManagerObjects.COBROWSER_MANAGER,"unloadTimeOut");
+        setTimeout(Tools.Delegate(this,this.unloadTimeOut),2000);
+    },
+    this.unloadTimeOut = function(){
+        this.iframe.remove();
+    },
+    this.reload = function(){
+        this.hideToAll();
+        this.registeredObject.callFunctionObject(CoBrowserManagerObjects.COBROWSER_MANAGER,"reloadTimeOut");
+        setTimeout(Tools.Delegate(this,this.reloadTimeOut),2000);
+    }
+    this.reloadTimeOut = function(){
+        this.unloadTimeOut();
+        this.registeredObject.init();
+    }
+    //--------------- callFunctions ------------
+    // callFunction , callFunctionAll , callFunctionObject , runFunctionAllObject , runFunctionObject
+    //  function run from coBrowserShell from other registered objects as toos,alerts, and global events
+    this.registeredObject = null,
+    this.register = function(target){
+        this.registeredObject = target;
+        this.coBrowserConnector = new PostMessageManager(this,this.iframe[0].contentWindow,window,"coBrowserIframeShell");
+        target.callFunction = Tools.Delegate(this,function(){
+            var params = Array.prototype.slice.call(arguments);
+            params.unshift("callFunction");
+            this.coBrowserConnector.callFunction.apply(this.coBrowserConnector,params)
+        })
+        target.callFunctionAll = Tools.Delegate(this,function(){
+            var params = Array.prototype.slice.call(arguments);
+            params.unshift("callFunctionAll");
+            this.coBrowserConnector.callFunction.apply(this.coBrowserConnector,params)
+        })
+        target.callFunctionObject = Tools.Delegate(this,function(){
+            var params = Array.prototype.slice.call(arguments);
+            params.unshift("callFunctionObject");
+            this.coBrowserConnector.callFunction.apply(this.coBrowserConnector,params)
+        })
+        target.runFunctionAllObject = Tools.Delegate(this,function(){
+            var params = Array.prototype.slice.call(arguments);
+            params.unshift("runFunctionAllObject");
+            this.coBrowserConnector.callFunction.apply(this.coBrowserConnector,params)
+        })
+        target.runFunctionObject = Tools.Delegate(this,function(){
+            var params = Array.prototype.slice.call(arguments);
+            params.unshift("runFunctionObject");
+            this.coBrowserConnector.callFunction.apply(this.coBrowserConnector,params)
+        })
+        // runFunction on docyment body of loaded page
+        target.runFunctionOnBody = Tools.Delegate(this,this.runFunctionOnBody);
+        // runFunction on registeredObject
+        target.runFunction = Tools.Delegate(this,function(params){
+            var functionName = params[0];
+            params.shift();
+            this.registeredObject[functionName].apply(this.registeredObject, params);
+        })
+        this.initListeners();
+    }
+    this.initListeners = function(){
+       $(window).resize( Tools.Delegate(this,this.onResize));
+    }
+    this.runRemoteFunction = function(params){
+        try{
+            var functionName = params[0];
+            params.shift();
+            try{
+                this.registeredObject[functionName].apply(this.registeredObject, params)
+            }catch(e){
+                console.debug("function not implemented in  coBrowserManager paranet : "+functionName+"  "+e);
+            }
+            try{
+                this[functionName].apply(this, params)
+            }catch(e){
+                console.debug("function not implemented in  coBrowserManager.js : "+functionName+"  "+e);
+            }
+            // try run same function here
+        }catch(e){
+            console.debug("function runRemoteFunction faild "+e);
+        }
+        console.log("params "+params);
+    }
+    this.getConfig = function(){
+        this.registeredObject.runFunctionObject(CoBrowserManagerObjects.COBROWSER,"applyConfig",Tools.config);
+    }
+    this.runFunctionOnBody = function(){
+        var params = Array.prototype.slice.call(arguments);
+        params.unshift("runFunctionFromTab");
+        params.unshift("runCbFunction")
+        params.unshift("callFunctionOnIframe")
+        this.coBrowserConnector.callFunction.apply(this.coBrowserConnector,params)
+    }
+    //--------- logic functions ------------
+    this.startCB = function(url){
+        if(this.isExpert){
+            this.registeredObject.callFunctionObject(CoBrowserManagerObjects.COBROWSER,"setOriginalUrl",url);
+            if(Tools.config.uiParams.confirmCbAlert){
+                this.registeredObject.callFunctionAll("showPermissionAlert");
+            }else{
+                this.registeredObject.callFunctionObject(CoBrowserManagerObjects.ALERTS,"startCb");
+            }
+        }else{
+            this.registeredObject.runFunctionObject(CoBrowserManagerObjects.COBROWSER,"setOriginalUrl",url);
+            if(Tools.config.uiParams.confirmCbAlert){
+                this.registeredObject.runFunctionAllObject("showPermissionAlert");
+            }else{
+                this.registeredObject.runFunctionObject(CoBrowserManagerObjects.ALERTS,"startCb");
+            }
+        }
+
+    }
+    //
+    this.init();
+    setTimeout(Tools.Delegate(this,this.initShow),100);
+}
+console.log(window.location.href)
